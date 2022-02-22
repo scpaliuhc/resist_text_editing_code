@@ -125,6 +125,7 @@ def post_refinement(
             rgb_reconstructed = rgb_gfilter(
                 rgb_reconstructed, b_param, dev=dev)
         loss = F.l1_loss(rgb_reconstructed, img_float.detach())
+        loss.requires_grad_(True)
         loss.backward()
         optimizer.step()
         if k % 20 == 0:
