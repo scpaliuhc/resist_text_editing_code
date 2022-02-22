@@ -134,57 +134,88 @@ for id,file in enumerate(files):
         log.write(f'{e.args}\n')
         log.flush()
     finally:
-        try:
-            img_adv_norm=(img_adv-mean_)/std_
-            img_adv_orig=(img_adv-0.5)*2
-            with torch.no_grad():
-                outs = model(img_adv_norm, img_adv_orig)
-            img_adv_np=(img_adv[0].data.cpu().permute(1, 2, 0).numpy()*255).astype(np.uint8)
-            pil_img_adv = Image.fromarray(img_adv_np)
-            img_size = torch.tensor([pil_img_adv.size[1], pil_img_adv.size[0]]).unsqueeze(0)
-            inps = (img_adv_norm, None, img_size)
-            vd_adv, rec_img = vectorize_postref(
-                pil_img_adv, inps, outs, model.reconstractor, 150, dev=dev
-            )
-            output_img_adv = render_vd(vd_adv)
+        print('process on adv')
+        img_adv_norm=(img_adv-mean_)/std_
+        img_adv_orig=(img_adv-0.5)*2
+        img_adv_np=(img_adv[0].data.cpu().permute(1, 2, 0).numpy()*255).astype(np.uint8)
+        pil_img_adv = Image.fromarray(img_adv_np)
+        img_size = torch.tensor([pil_img_adv.size[1], pil_img_adv.size[0]]).unsqueeze(0)
+        inps = (img_adv_norm, None, img_size)
+        img_adv=img_adv.data.cpu().numpy()[0].transpose(1,2,0)
             
-            img_norm=(img-mean_)/std_
-            img_orig=(img-0.5)*2
-            with torch.no_grad():
-                outs = model(img_norm, img_orig)
-            img_np=(img[0].data.cpu().permute(1, 2, 0).numpy()*255).astype(np.uint8)
-            pil_img=Image.fromarray(img_np)
-            inps = (img_norm, None, img_size)
+        with torch.no_grad():
+            outs = model(img_adv_norm, img_adv_orig)
+        if outs[0].font_outs.shape[1]==0:
+            print("main.py 153",outs[0].font_outs.shape)
+            log.write(f'[error]-adv: {outs[0].font_outs.shape}\n')
+            output_img_adv=np.zeros_like(img_adv)
+            back_adv=img_adv
+            vd_adv=None
+        else:
+            vd_adv, rec_img = vectorize_postref(
+                    pil_img_adv, inps, outs, model.reconstractor, 150, dev=dev
+                )
+            output_img_adv = render_vd(vd_adv)
+            back_adv=vd_adv.bg.astype(np.uint8)
+        # except Exception as e:
+        #     print('\n',e.args)
+        #     print("main.py 153",outs[0].font_outs.shape)
+        #     log.write(f'[error]-adv: {outs[0].font_outs.shape}\n')
+        #     output_img_adv=np.zeros_like(img_adv)
+        #     back_adv=img_adv
+
+        # try:
+        print('process on clean')
+        img_norm=(img-mean_)/std_
+        img_orig=(img-0.5)*2
+        img_np=(img[0].data.cpu().permute(1, 2, 0).numpy()*255).astype(np.uint8)
+        pil_img=Image.fromarray(img_np)
+        inps = (img_norm, None, img_size)
+        img=img.data.cpu().numpy()[0].transpose(1,2,0)
+        with torch.no_grad():
+            outs = model(img_norm, img_orig)
+        if outs[0].font_outs.shape[1]==0:
+            print("main.py 175",outs[0].font_outs.shape)
+            log.write(f'[error]-clean: {outs[0].font_outs.shape}\n')
+            output_img=np.zeros_like(img)
+            back_clean=img
+        else:
             vd, rec_img = vectorize_postref(
-                pil_img, inps, outs, model.reconstractor, 150, dev=dev
-            )
+                    pil_img, inps, outs, model.reconstractor, 150, dev=dev
+                )
             output_img = render_vd(vd)
+            back_clean=vd.bg.astype(np.uint8)
+        # except Exception as e:
+        #     print('\n',e.args)
+        #     print("main.py 153",outs[0].font_outs.shape)
+        #     log.write(f'[error]-clean: {outs[0].font_outs.shape}\n')
+        #     output_img=np.zeros_like(img)
+        #     back_clean=img
+        log.flush()
+        
+     
+        fig=plt.figure(figsize=(35, 35))
+        plt.subplot(2, 3, 1)
+        plt.imshow(img)
+        plt.axis("off")
+        plt.subplot(2, 3, 2)
+        plt.imshow(output_img)
+        plt.axis("off")
+        plt.subplot(2, 3, 3)
+        plt.imshow(back_clean)
+        plt.axis("off")
+        plt.subplot(2, 3, 4)
+        plt.imshow(img_adv)
+        plt.axis("off")
+        plt.subplot(2, 3, 5)
+        plt.imshow(output_img_adv)
+        plt.axis("off")
+        plt.subplot(2, 3, 6)
+        plt.imshow(back_adv)
+        plt.axis("off")
 
-            fig=plt.figure(figsize=(35, 35))
-            plt.subplot(2, 3, 1)
-            plt.imshow(img.data.cpu().numpy()[0].transpose(1,2,0))
-            plt.axis("off")
-            plt.subplot(2, 3, 2)
-            plt.imshow(output_img)
-            plt.axis("off")
-            plt.subplot(2, 3, 3)
-            plt.imshow(vd.bg.astype(np.uint8))
-            plt.axis("off")
-            plt.subplot(2, 3, 4)
-            plt.imshow(img_adv.data.cpu().numpy()[0].transpose(1,2,0))
-            plt.axis("off")
-            plt.subplot(2, 3, 5)
-            plt.imshow(output_img_adv)
-            plt.axis("off")
-            plt.subplot(2, 3, 6)
-            plt.imshow(vd_adv.bg.astype(np.uint8))
-            plt.axis("off")
-
-            save_result(save_file,[img_adv,vd_adv])
-            plt.savefig(os.path.join(save_dir, f'{args.attack}_{file[:-4]}.jpg'))
-            plt.close()
-        except:
-            log.write('error and skip')
-            log.flush()
+        save_result(save_file,[img_adv,vd_adv])
+        plt.savefig(os.path.join(save_dir, f'{args.attack}_{file[:-4]}.jpg'))
+        plt.close()
         
 log.close()
