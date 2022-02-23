@@ -13,6 +13,7 @@ import shutil
 from src.modules.postprocess.vector import  vectorize_postref
 from PIL import Image
 from src.modules.postprocess.renderer import render_vd
+from logzero import logger as logg
 parser = argparse.ArgumentParser()
 parser.add_argument('-d','--data_dir',default='dataset')
 parser.add_argument('-g','--gpuid',default=0,type=int)
@@ -70,18 +71,17 @@ if args.log:
     log.flush()
 finished=os.listdir(save_dir)
 for id,file in enumerate(files):
-    if f'{args.attack}_{file[:-4]}.jpg' in finished:
+    if f'{args.attack}_{file[:-4]}.b' in finished:
         continue
     # if True:
     try:
-        print(f"{id}/{total} {file}")
+        logg.debug(f"{id}/{total} {file}")
         img=load_img(os.path.join(args.data_dir,file))
         img=img.to(dev)
         img_clean_norm=(img-mean_)/std_
         img_2=(img-0.5)*2
         with torch.no_grad():
             GT,fe=get_parser_outs(img_clean_norm,img_2,model)###check img_2换为img的影响
-        
         GT_ocr=GT.ocr_outs
         shadow_visibility, stroke_visibility = GT.effect_visibility_outs
         shadow_param_sig, shadow_param_tanh, stroke_param = GT.effect_param_outs
@@ -134,7 +134,7 @@ for id,file in enumerate(files):
         log.write(f'{e.args}\n')
         log.flush()
     finally:
-        print('process on adv')
+        logg.debug('process on adv')
         img_adv_norm=(img_adv-mean_)/std_
         img_adv_orig=(img_adv-0.5)*2
         img_adv_np=(img_adv[0].data.cpu().permute(1, 2, 0).numpy()*255).astype(np.uint8)
@@ -145,11 +145,12 @@ for id,file in enumerate(files):
             
         with torch.no_grad():
             outs = model(img_adv_norm, img_adv_orig)
-        if outs[0].font_outs.shape[1]==0:
-            print("main.py 153",outs[0].font_outs.shape)
+        #如果等于0，就无法进入后续的优化过程
+        if outs[0].font_outs.shape[1]==0 and 0 in args.attack_p or 1 in args.attack_p:
+            logg.error(f"{outs[0].font_outs.shape}")
             log.write(f'[error]-adv: {outs[0].font_outs.shape}\n')
             output_img_adv=np.zeros_like(img_adv)
-            back_adv=img_adv
+            back_adv=output_img_adv
             vd_adv=None
         else:
             vd_adv, rec_img = vectorize_postref(
@@ -157,6 +158,7 @@ for id,file in enumerate(files):
                 )
             output_img_adv = render_vd(vd_adv)
             back_adv=vd_adv.bg.astype(np.uint8)
+        mask_adv=outs[0].bbox_information.get_text_instance_mask()[0]
         # except Exception as e:
         #     print('\n',e.args)
         #     print("main.py 153",outs[0].font_outs.shape)
@@ -165,7 +167,7 @@ for id,file in enumerate(files):
         #     back_adv=img_adv
 
         # try:
-        print('process on clean')
+        logg.debug('process on clean')
         img_norm=(img-mean_)/std_
         img_orig=(img-0.5)*2
         img_np=(img[0].data.cpu().permute(1, 2, 0).numpy()*255).astype(np.uint8)
@@ -174,8 +176,9 @@ for id,file in enumerate(files):
         img=img.data.cpu().numpy()[0].transpose(1,2,0)
         with torch.no_grad():
             outs = model(img_norm, img_orig)
+        text_mask=outs[0].bbox_information.get_text_instance_mask()[0]
         if outs[0].font_outs.shape[1]==0:
-            print("main.py 175",outs[0].font_outs.shape)
+            logg.error(f"{outs[0].font_outs.shape}")
             log.write(f'[error]-clean: {outs[0].font_outs.shape}\n')
             output_img=np.zeros_like(img)
             back_clean=img
@@ -185,6 +188,8 @@ for id,file in enumerate(files):
                 )
             output_img = render_vd(vd)
             back_clean=vd.bg.astype(np.uint8)
+        mask_clean=outs[0].bbox_information.get_text_instance_mask()[0]
+
         # except Exception as e:
         #     print('\n',e.args)
         #     print("main.py 153",outs[0].font_outs.shape)
@@ -192,28 +197,31 @@ for id,file in enumerate(files):
         #     output_img=np.zeros_like(img)
         #     back_clean=img
         log.flush()
-        
-     
-        fig=plt.figure(figsize=(35, 35))
-        plt.subplot(2, 3, 1)
+        fig=plt.figure(figsize=(60, 40))
+        plt.subplot(2, 4, 1)
         plt.imshow(img)
         plt.axis("off")
-        plt.subplot(2, 3, 2)
-        plt.imshow(output_img)
+        plt.subplot(2, 4, 2)
+        plt.imshow(mask_clean)
         plt.axis("off")
-        plt.subplot(2, 3, 3)
+        plt.subplot(2, 4, 3)
         plt.imshow(back_clean)
         plt.axis("off")
-        plt.subplot(2, 3, 4)
+        plt.subplot(2, 4, 4)
+        plt.imshow(output_img)
+        plt.axis("off")
+        plt.subplot(2, 4, 5)
         plt.imshow(img_adv)
         plt.axis("off")
-        plt.subplot(2, 3, 5)
-        plt.imshow(output_img_adv)
+        plt.subplot(2, 4, 6)
+        plt.imshow(mask_adv)
         plt.axis("off")
-        plt.subplot(2, 3, 6)
+        plt.subplot(2, 4, 7)
         plt.imshow(back_adv)
         plt.axis("off")
-
+        plt.subplot(2, 4, 8)
+        plt.imshow(output_img_adv)
+        plt.axis("off")
         save_result(save_file,[img_adv,vd_adv])
         plt.savefig(os.path.join(save_dir, f'{args.attack}_{file[:-4]}.jpg'))
         plt.close()
