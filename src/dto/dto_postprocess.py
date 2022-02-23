@@ -121,7 +121,7 @@ class VectorData:
         font_dict = load_font_dicts()
         font_names = []
         for tb in self.tb_param:
-            font_path = font_dict[tb.font_id]
+            font_path = font_dict[tb.font_data.font_id]
             font_file_name = font_path.split("/")[-1]
             # font name extract from a file name
             font_name = font_file_name.split(".")[0]

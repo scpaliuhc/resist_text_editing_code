@@ -156,4 +156,4 @@ def vectorize_postref(
     )
 
     # vectorization data for rendering
-    return (VectorData(bg, tb_param, effect_param, effect_visibility), rgb_rec)
+    return VectorData(bg, tb_param, effect_param, effect_visibility), rgb_rec, optp
