@@ -25,3 +25,5 @@ class Model(nn.Module):
         inpaint = F.interpolate(inpaint, img_org.shape[2:4], mode="bilinear")
         rec = self.reconstractor(features, img_org, inpaint, text_information)
         return text_information, inpaint, rec
+
+    

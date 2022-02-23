@@ -11,6 +11,10 @@ from tqdm import tqdm
 import numpy as np
 import os
 import torch.nn.functional as F
+from src.models.layers.geometry.bbox import get_bbox,get_bb_level_features
+from src.models.layers.geometry.shape import convert_shape
+from src.dto.dto_model import TextInfo
+from logzero import logger as logg
 #######################loss#####################
 def pert_loss(adv_img,img,mask=None,ord=1):
     if ord==1:
@@ -75,25 +79,22 @@ def load_model(dev: torch.device):
     model.load_state_dict(torch.load(get_weight()), strict=True)
     model.eval()
     return model
-def get_parser_outs(img_norm,img,model):
+
+def get_parser_outs(img_norm,img_org,model):
     fe=model.backbone(img_norm)
     _,fe=model.down(fe)
-    TxIn=model.text_parser(fe,img)
+    TxIn=model.text_parser(fe,img_org)
     # ocr_outs=model.text_parser.ocr(fe)
     return TxIn,fe
 
-def get_parser_outs_with_fixed_ocr(img_norm,img,model,ocr):
-    from src.models.layers.geometry.bbox import get_bbox,get_bb_level_features
-    from src.models.layers.geometry.shape import convert_shape
-    from src.dto.dto_model import TextInfo
-
+def get_parser_outs_with_fixed_ocr(img_norm,img_org,model,ocr):
     fe=model.backbone(img_norm)
     _,fe=model.down(fe)
     # TxIn=model.text_parser(fe,img)
-    ocr_outs_1 = model.text_parser.ocr(fe)
+    # ocr_outs_1 = model.text_parser.ocr(fe)
     ocr_outs=ocr
     bbox_information = get_bbox(
-                ocr_outs, (img.shape[2], img.shape[3]))
+                ocr_outs, (img_org.shape[2], img_org.shape[3]))
     text_instance_mask = bbox_information.get_text_instance_mask()
     text_instance_mask = torch.from_numpy(
                 text_instance_mask).to(model.text_parser.dev)
@@ -105,7 +106,7 @@ def get_parser_outs_with_fixed_ocr(img_norm,img,model,ocr):
     font_outs = model.text_parser.font(features_box)
         
         #font_size_outs = self.font_size(features_box)
-    alpha_outs = model.text_parser.alpha(fe, img)
+    alpha_outs = model.text_parser.alpha(fe, img_org)
 
     batch_num = fe.shape[0]
     effect_visibility_outs = convert_shape(
@@ -115,7 +116,7 @@ def get_parser_outs_with_fixed_ocr(img_norm,img,model,ocr):
             effect_param_outs, batch_num, text_num, False, 10)
     font_outs = convert_shape([font_outs], batch_num, text_num, False, 10)[0]
     TxIn=TextInfo(
-            ocr_outs_1,
+            ocr_outs,#应该是替换后的还是替换前的？？
             bbox_information,
             effect_visibility_outs,
             effect_param_outs,
@@ -125,9 +126,17 @@ def get_parser_outs_with_fixed_ocr(img_norm,img,model,ocr):
         )
     return TxIn,fe
 
+def predict_with_fixed_ocr(img_norm,img_org,model,ocr):
+    text_information,features=get_parser_outs_with_fixed_ocr(img_norm,img_org,model,ocr)
+    inpaint = model.inpaintor(img_org, text_information)
+    inpaint = F.interpolate(inpaint, img_org.shape[2:4], mode="bilinear")
+    rec = model.reconstractor(features, img_org, inpaint, text_information)
+    return text_information, inpaint, rec
+
 def get_inpaint(img,TxInf,model):
     inpaint=model.inpaintor(img,TxInf)
     return inpaint
+
 def load_img(imgfile: str):
     image = tio.read_image(imgfile, ImageReadMode.RGB)
     
@@ -143,205 +152,11 @@ def load_img(imgfile: str):
     )
     image=pre_process(image).unsqueeze(0)
     return image
-def calculate_ocr_loss(ADV,DIS,args,img,img_adv,mask_c,mask_c_): 
-    ADV_word_out, _, _ = ADV.ocr_outs
-    ADV_text_fg_pred, _, _ = ADV_word_out
-    l1=torch.max(ADV_text_fg_pred[0,1,mask_c_[1],mask_c_[2]]-ADV_text_fg_pred[0,0,mask_c_[1],mask_c_[2]],torch.zeros_like(ADV_text_fg_pred[0,1,mask_c_[1],mask_c_[2]]))
-    l1=l1.mean()
-    # Char_L=torch.max(ADV_char_fg_pred[0,1,char_keep_rows,char_keep_cols]-ADV_char_fg_pred[0,0,char_keep_rows,char_keep_cols],torch.zeros_like(ADV_char_fg_pred[0,1,char_keep_rows,char_keep_cols]))
-    # Char_L=Char_L.mean()
-    # Char_L=0
-    if args.GLI in ['loc','ind']:
-        l2=DIS(img[:,:,mask_c[1],mask_c[2]],img_adv[:,:,mask_c[1],mask_c[2]])
-    else:
-        l2=DIS(img,img_adv)
-    Loss=args.lbd1*l1+args.lbd2*l2
-    return Loss,l1,l2
 
-def calculate_inpaint_loss(ADV,DIS,args,img,img_adv,word_mask_c,word_mask_c_,word_mask_c_256,alpha_mask_c_,inpaintor,target_inpaint):   
-    out=inpaintor(img_adv,ADV)
- 
-    #test alpha mask
-    # l1=-1*DIS(out[:,:,alpha_mask_c_[1],alpha_mask_c_[2]],gt_inpaint[:,:,alpha_mask_c_[1],alpha_mask_c_[2]])
-    l1=1*DIS(out[:,:,word_mask_c_256[1],word_mask_c_256[2]],target_inpaint[:,:,word_mask_c_256[1],word_mask_c_256[2]])
-    if args.GLI in ['loc','ind']:
-        l2=DIS(img[:,:,word_mask_c[1],word_mask_c[2]],img_adv[:,:,word_mask_c[1],word_mask_c[2]])
-    else:
-        l2=DIS(img,img_adv)
-    Loss=args.lbd1*l1+args.lbd2*l2
-    return Loss, l1, l2 
-
-def calculate_visible_loss(ADV,DIS,args,img,img_adv,mask_c,target_vis,target_ocr):
-    shadow_visibility, stroke_visibility=ADV.effect_visibility_outs
-    # ocr_outs=ADV.ocr_outs
-    # l3=DIS(ocr_outs[0][0],target_ocr[0])+DIS(ocr_outs[1][0],target_ocr[1])+DIS(ocr_outs[2],target_ocr[2])#word
-    # l3+=#char
-    # l3+=#rec
-
-    if 3 in args.attack_p:
-        visibility = F.softmax(shadow_visibility[0], 1)
-    elif 2 in args.attack_p:
-        visibility = F.softmax(stroke_visibility[0], 1)
-    else:
-        raise NotImplementedError
-    l1=DIS(visibility,target_vis)
-    if args.GLI in ['loc','ind']:
-        l2=DIS(img[:,:,mask_c[1],mask_c[2]],img_adv[:,:,mask_c[1],mask_c[2]])
-    else:
-        l2=DIS(img,img_adv)
-    Loss=args.lbd1*l1+args.lbd2*l2#+args.lbd3*l3
-    return Loss,l1,l2#,l3
-
-
-def save_fig(save_dir,name,img,img_adv,inpaint):
-    fig=plt.figure(figsize=(30, 30))
-    plt.subplot(1, 3, 1)
-    plt.imshow(img.cpu().detach().numpy()[0].transpose((1,2,0)))
-    plt.axis("off")
-    plt.subplot(1, 3, 2)
-    plt.imshow(img_adv.cpu().detach().numpy()[0].transpose((1,2,0)))
-    plt.axis("off")
-    plt.subplot(1, 3, 3)
-    plt.imshow(inpaint.cpu().detach().numpy()[0].transpose((1,2,0))/2+0.5)
-    plt.axis("off")
-    plt.savefig(f"{save_dir}/{name}.png")
-    plt.close()
-def str2bool(str):
-    return True if str.lower()=='true' else False
-def cw(model,img,mean,std,DIS,args,dev,save_dir,word_mask_c,word_mask_c_,word_mask_c_256,alpha_mask_c,alpha_mask_c_,target_inpaint,log):
-    if args.pre:
-        try:
-            with open(os.path.join(save_dir,f'adv_per_iter_{args.GLI}.b'),'rb') as f:
-                r=pickle.load(f)
-                w=r[3].to(dev)
-                iter=r[2]
-            print(f'load the last results from adv_per_iter_{args.GLI}.b')
-        except:
-            print(f'fail at loading adv_per_iter_{args.GLI}.b')
-            w=torch.atanh(torch.clamp(2*img-1,-0.999999,0.999999)).to(dev).detach_()
-            iter=0
-    else:
-        w=torch.atanh(torch.clamp(2*img-1,-0.999999,0.999999)).to(dev).detach_()
-        iter=0
-    w.requires_grad=True
-    # optimizer = torch.optim.Adam([w], lr=args.lr)
-    w_fixed=w.clone().detach()
-    
-    try:
-        for i in tqdm(range(iter,args.iter)):
-            img_adv=1/2*(torch.tanh(w)+1)
-            # if args.GLI=='glo':
-            #     img_adv=(torch.tanh(w)+1)/2
-            # elif args.GLI=='loc':
-            #     img_adv=(torch.tanh(w)+1)/2*word_bin_mask+img*(1-word_bin_mask)
-            img_adv_norm=(img_adv-mean)/std
-            ADV,fe=get_parser_outs(img_adv_norm,img_adv,model)
-            if 0 in args.attack_p:
-                Loss,l1,l2=calculate_ocr_loss(ADV,DIS,args,img,img_adv,word_mask_c,word_mask_c_)
-            if 1 in args.attack_p:
-                raise NotImplementedError
-                # Loss,l1,l2=calculate_inpaint_loss(ADV,DIS,args,img,img_adv,word_mask_c,word_mask_c_,word_mask_c_256,alpha_mask_c_,model.inpaintor,gt_inpaint)
-            log.write(f'{i:4d}\t{Loss:.4f}\t{l1:.8f}\t{l2:.8f}\n')
-            log.flush()
-            if i%20==0:
-                save_fig(save_dir,i,img,img_adv)
-            # optimizer.zero_grad()
-            Loss.backward()
-            print(w.grad[:,:,alpha_mask_c[1],alpha_mask_c[2]])
-            w=(w-args.lr*w.grad).detach_()
-            # optimizer.step()
-            if args.GLI!='glo':
-                w=(w_fixed*(1-word_mask_c[0])+w*word_mask_c[0]).detach_()
-            w.requires_grad=True         
-    except Exception as e:
-        print(e.args)
-        print(w.grad)
-    finally:
-        return img_adv, w, i
-def gradient_attack(model,img,mean,std,DIS,args,dev,save_dir,word_mask_c,word_mask_c_,word_mask_c_256,alpha_mask_c,alpha_mask_c_,target_inpaint,target_visible,target_ocr,log):
-    if args.pre:
-        try:
-            with open(os.path.join(save_dir,f'adv_per_iter_{args.GLI}.b'),'rb') as f:
-                r=pickle.load(f)
-                img_adv=r[0].to(dev)
-                iter=r[2]
-                g_t=r[3]
-            print(f'load the last results from adv_per_iter_{args.GLI}.b')
-        except:
-            print(f'fail at loading adv_per_iter_{args.GLI}.b')
-            if args.attack=='pgd':
-                p=torch.Tensor(img.shape[0],img.shape[1],img.shape[2],img.shape[3]).uniform_(-args.epsilon,args.epsilon).to(dev)
-                if args.GLI == 'glo':
-                    img_adv=img+p
-                else:
-                    img_adv=img+p*word_mask_c[0]
-                img_adv=torch.clamp(img_adv,0,1).detach_()
-            else:
-                img_adv=img.clone().detach()
-            g_t=0
-            iter=0         
-    else:
-        if args.attack=='pgd':
-            p=torch.Tensor(img.shape[0],img.shape[1],img.shape[2],img.shape[3]).uniform_(-args.epsilon,args.epsilon).to(dev)
-            if args.GLI == 'glo':
-                img_adv=img+p
-            else:
-                img_adv=img+p*word_mask_c[0]
-            img_adv=torch.clamp(img_adv,0,1).detach_()
-        else:
-            img_adv=img.clone().detach()
-        g_t=0
-        iter=0
-    alpha=args.epsilon/args.iter
-    l3=0.
-    try:
-    # if True:
-        for i in tqdm(range(iter,args.iter)):
-            img_adv.requires_grad=True
-            img_adv_norm=(img_adv-mean)/std
-            if 2 in args.attack_p or 3 in args.attack_p:
-                ADV,fe=get_parser_outs_with_fixed_ocr(img_adv_norm,img_adv,model,ocr=target_ocr)
-            else:
-                ADV,fe=get_parser_outs(img_adv_norm,img_adv,model)
-            model.zero_grad()
-            if 0 in args.attack_p:
-                Loss,l1,l2=calculate_ocr_loss(ADV,DIS,args,img,img_adv,word_mask_c,word_mask_c_)
-            if 1 in args.attack_p:
-                Loss,l1,l2=calculate_inpaint_loss(ADV,DIS,args,img,img_adv,word_mask_c,word_mask_c_,word_mask_c_256,alpha_mask_c_,model.inpaintor,target_inpaint)
-            if 2 in args.attack_p or 3 in args.attack_p:
-                Loss,l1,l2=calculate_visible_loss(ADV,DIS,args,img,img_adv,word_mask_c,target_visible,target_ocr)
-            log.write(f'{i:4d}\t{Loss:.4f}\t{l1:.4f}\t{l2:.4f}\t{l3:.4f}\n')
-            log.flush()
-            Loss.backward()
-            if args.attack != 'mi_fgsm':
-                if args.GLI=='glo':
-                    img_adv=img_adv-alpha*img_adv.grad.sign()
-                else:
-                    img_adv=img_adv-alpha*(img_adv.grad.sign()*word_mask_c[0])
-            else:
-                g_t=args.mu*g_t+img_adv.grad/torch.norm(img_adv.grad,p=1)
-                if args.GLI=='glo':
-                    img_adv=img_adv-alpha*g_t.sign()
-                else:
-                    img_adv=img_adv-alpha*(g_t.sign()*word_mask_c[0])
-            perturb=torch.clamp(img_adv-img,-args.epsilon,args.epsilon)
-            img_adv=torch.clamp(img+perturb,0,1).detach_()
-    except Exception as e:
-        print("!!!!")
-        print(e.args)
-    finally:
-        img_adv_norm=(img_adv-mean)/std
-        ADV,fe=get_parser_outs(img_adv_norm,img_adv,model)
-        return img_adv,g_t,i,model.inpaintor(img_adv,ADV)
 def save_result(save_file,record):
     with open(save_file,'wb') as f:
         pickle.dump(record,f)
-def str2list_int(s):
-    #'2,3,4,5'->[2,3,4,5]
-    numbers=s.split(',')
-    for i in len(numbers):
-        numbers[i]=int(numbers[i])
-    return numbers
+
 def get_mask_ind(textInf):
     bbox=textInf.bbox_information.get_text_rectangle()[0].astype(np.int)
     inds=[]
@@ -384,10 +199,12 @@ def gradient_based_attack(model,img,mean,std,args,dev,save_dir,mask,log,GT_ocr,t
         for i in tqdm(range(iter,args.iter)):
             img_adv.requires_grad=True
             img_adv_norm=(img_adv-mean)/std
+            img_adv_org=(img_adv-0.5)*2
+            
             if 2 in args.attack_p or 3 in args.attack_p or 4 in args.attack_p or 6 in args.attack_p or 6 in args.attack_p:
-                ADV_TxT,fe=get_parser_outs_with_fixed_ocr(img_adv_norm,(img_adv-0.5)*2,model,ocr=GT_ocr)
+                ADV_TxT,_=get_parser_outs_with_fixed_ocr(img_adv_norm,img_adv_org,model,ocr=GT_ocr)
             else:
-                ADV_TxT,fe=get_parser_outs(img_adv_norm,(img_adv-0.5)*2,model)
+                ADV_TxT,_=get_parser_outs(img_adv_norm,img_adv_org,model)
             model.zero_grad()
             
             if args.GLI in ['loc','ind']: 
@@ -455,13 +272,6 @@ def gradient_based_attack(model,img,mean,std,args,dev,save_dir,mask,log,GT_ocr,t
             perturb=torch.clamp(img_adv-img,-args.epsilon,args.epsilon)
             img_adv=torch.clamp(img+perturb,0,1).detach_()
     except Exception as e:
-        print('attack_box_util.py gradient_based_attack\n')
-        print(e.args)
+        logg.exception(e.args)
     finally:
-        # img_adv_norm=(img_adv-mean)/std
-        # if 2 in args.attack_p or 3 in args.attack_p or 4 in args.attack_p or 6 in args.attack_p or 6 in args.attack_p:
-        #     ADV_TxT,fe=get_parser_outs_with_fixed_ocr(img_adv_norm,(img_adv-0.5)*2,model,ocr=GT_ocr)
-        # else:
-        #     ADV_TxT,fe=get_parser_outs(img_adv_norm,(img_adv-0.5)*2,model)
-        # return img_adv,ADV_TxT,i,model.inpaintor((img_adv-0.5)*2,ADV_TxT)
         return img_adv

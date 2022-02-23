@@ -1,5 +1,5 @@
 
-from ast import arg
+from ast import Gt, arg
 import torch
 import numpy as np
 import os
@@ -141,10 +141,34 @@ for id,file in enumerate(files):
         pil_img_adv = Image.fromarray(img_adv_np)
         img_size = torch.tensor([pil_img_adv.size[1], pil_img_adv.size[0]]).unsqueeze(0)
         inps = (img_adv_norm, None, img_size)
-        img_adv=img_adv.data.cpu().numpy()[0].transpose(1,2,0)
-            
-        with torch.no_grad():
-            outs = model(img_adv_norm, img_adv_orig)
+        img_adv=img_adv.data.cpu().numpy()[0].transpose(1,2,0)    
+        if 0 in args.attack_p or 1 in args.attack_p:
+            with torch.no_grad():
+                outs = model(img_adv_norm, img_adv_orig)
+        else:
+            logg.debug('predict_with_fixed_ocr')
+            with torch.no_grad():
+                outs = predict_with_fixed_ocr(img_adv_norm, img_adv_orig, model,GT_ocr)
+            mask1=outs[0].bbox_information.get_text_instance_mask()[0]
+            mask2=GT_ocr.bbox_information.get_text_instance_mask()[0]
+            img_norm=(img-mean_)/std_
+            img_orig=(img-0.5)*2
+            with torch.no_grad():
+                outs = model(img_norm, img_orig)
+            mask3=outs[0].bbox_information.get_text_instance_mask()[0]
+            fig=plt.figure(figsize=(60, 40))
+            plt.subplot(2, 4, 1)
+            plt.imshow(mask1)
+            plt.axis("off")
+            plt.subplot(2, 4, 2)
+            plt.imshow(mask2)
+            plt.axis("off")
+            plt.subplot(2, 4, 3)
+            plt.imshow(mask3)
+            plt.axis("off")
+            plt.savefig('check.jpg')
+            plt.close()
+            exit()
         #如果等于0，就无法进入后续的优化过程
         if outs[0].font_outs.shape[1]==0 and 0 in args.attack_p or 1 in args.attack_p:
             logg.error(f"{outs[0].font_outs.shape}")
@@ -159,14 +183,6 @@ for id,file in enumerate(files):
             output_img_adv = render_vd(vd_adv)
             back_adv=vd_adv.bg.astype(np.uint8)
         mask_adv=outs[0].bbox_information.get_text_instance_mask()[0]
-        # except Exception as e:
-        #     print('\n',e.args)
-        #     print("main.py 153",outs[0].font_outs.shape)
-        #     log.write(f'[error]-adv: {outs[0].font_outs.shape}\n')
-        #     output_img_adv=np.zeros_like(img_adv)
-        #     back_adv=img_adv
-
-        # try:
         logg.debug('process on clean')
         img_norm=(img-mean_)/std_
         img_orig=(img-0.5)*2
