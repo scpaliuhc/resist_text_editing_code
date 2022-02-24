@@ -199,11 +199,20 @@ def gradient_based_attack(model,img,mean,std,args,dev,save_dir,mask,log,GT_ocr,t
             img_adv.requires_grad=True
             img_adv_norm=(img_adv-mean)/std
             img_adv_org=(img_adv-0.5)*2
-            
+            ########待定
             # if 2 in args.attack_p or 3 in args.attack_p or 4 in args.attack_p or 6 in args.attack_p or 6 in args.attack_p:
-            ADV_TxT,_,ocr_outs=get_parser_outs_with_fixed_ocr(img_adv_norm,img_adv_org,model,ocr_fixed=GT_ocr)
+            # ADV_TxT,_,ocr_outs_adv=get_parser_outs_with_fixed_ocr(img_adv_norm,img_adv_org,model,ocr_fixed=GT_ocr)
             # else:
             #     ADV_TxT,_=get_parser_outs(img_adv_norm,img_adv_org,model)
+            ##########
+
+            ###########
+            # if 1 in args.attack_p:
+            #     ADV_TxT,_=get_parser_outs(img_adv_norm,img_adv_org,model)
+            #     ocr_outs_adv=ADV_TxT.ocr_outs
+            # else:
+            ADV_TxT,_,ocr_outs_adv=get_parser_outs_with_fixed_ocr(img_adv_norm,img_adv_org,model,ocr_fixed=GT_ocr)
+            ###########
             model.zero_grad()
             
             if args.GLI in ['loc','ind']: 
@@ -212,7 +221,7 @@ def gradient_based_attack(model,img,mean,std,args,dev,save_dir,mask,log,GT_ocr,t
                 pert_l=args.lbd_pert*pert_loss(img_adv,img,None,ord=2)
             
             if 0 in args.attack_p:
-                ADV_word_out, _, _ = ocr_outs # 之前是ADV_TxT.ocr_outs，但是现在ADV_TxT.ocr_outs是img的ocr结果了
+                ADV_word_out, _, _ = ocr_outs_adv # 之前是ADV_TxT.ocr_outs，但是现在ADV_TxT.ocr_outs是img的ocr结果了
                 ADV_text_fg_pred, _, _ = ADV_word_out
                 ocr_l=ocr_loss(ADV_text_fg_pred,mask[1])
             
