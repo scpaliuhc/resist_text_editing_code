@@ -207,11 +207,11 @@ def gradient_based_attack(model,img,mean,std,args,dev,save_dir,mask,log,GT_ocr,t
             ##########
 
             ###########
-            # if 1 in args.attack_p:
-            #     ADV_TxT,_=get_parser_outs(img_adv_norm,img_adv_org,model)
-            #     ocr_outs_adv=ADV_TxT.ocr_outs
-            # else:
-            ADV_TxT,_,ocr_outs_adv=get_parser_outs_with_fixed_ocr(img_adv_norm,img_adv_org,model,ocr_fixed=GT_ocr)
+            if 1 in args.attack_p: #1和0不替换
+                ADV_TxT,_=get_parser_outs(img_adv_norm,img_adv_org,model)
+                ocr_outs_adv=ADV_TxT.ocr_outs
+            else:
+                ADV_TxT,_,ocr_outs_adv=get_parser_outs_with_fixed_ocr(img_adv_norm,img_adv_org,model,ocr_fixed=GT_ocr)
             ###########
             model.zero_grad()
             

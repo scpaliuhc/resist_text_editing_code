@@ -181,7 +181,7 @@ for id,file in enumerate(files):
         pil_img_adv = Image.fromarray(img_adv_np)
         inps = (img_adv_norm, None, img_size)
         img_adv=img_adv.data.cpu().numpy()[0].transpose(1,2,0)    
-        if 0 in args.attack_p: # or 1 in args.attack_p:
+        if 0 in args.attack_p or 1 in args.attack_p:
             with torch.no_grad():
                 outs_adv = model(img_adv_norm, img_adv_orig)
         else:
