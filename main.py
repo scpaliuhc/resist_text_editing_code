@@ -14,6 +14,7 @@ from src.modules.postprocess.vector import  vectorize_postref
 from PIL import Image
 from src.modules.postprocess.renderer import render_vd
 from logzero import logger as logg
+import random,math
 parser = argparse.ArgumentParser()
 parser.add_argument('-d','--data_dir',default='dataset')
 parser.add_argument('-g','--gpuid',default=0,type=int)
@@ -39,10 +40,6 @@ parser.add_argument('--protect',type=int,nargs='+')
 parser.add_argument('--attack_p',type=int,nargs='+') #0:detection #1:inpaint #2:stroke visi #3:shadow visi #4:font #5:stroke #6:shadow
 args=parser.parse_args()
 print(args)
-if args.protect is not None:
-    args.protect=np.array(args.protect,dtype=np.int8)
-if args.GLI=='ind':
-    assert len(args.protect)>0
 ############预处理###############
 if args.gpuid<0:
     dev = torch.device(f"cpu")
@@ -99,6 +96,16 @@ for id,file in enumerate(files):
                                 255),
                             torch.zeros_like(rec_img))
         rec_img=rec_img.data.cpu().numpy()[0].transpose(1, 2, 0)/255
+
+
+        if args.GLI=='ind':
+            text_num=len(vd.get_texts())
+            assert text_num>=2
+            args.protect=[i for i in range(text_num)]
+            random.shuffle(args.protect)
+            args.protect=args.protect[:math.floor(text_num/2)]
+            args.protect=np.array(args.protect,dtype=np.int8)
+        
         #用优化后结果作为GT
         GT=outs[0]
         GT_ocr=GT.ocr_outs
@@ -182,11 +189,12 @@ for id,file in enumerate(files):
             logg.debug('predict_with_fixed_ocr')
             with torch.no_grad():
                 outs_adv = predict_with_fixed_ocr(img_adv_norm, img_adv_orig, model,GT_ocr)
-        if outs_adv[0].font_outs.shape[1]==0 and 0 in args.attack_p or 1 in args.attack_p:
+        if outs_adv[0].font_outs.shape[1]==0:
             logg.error(f"{outs_adv[0].font_outs.shape}")
             log.write(f'[error]-adv: {outs_adv[0].font_outs.shape}\n')
             output_img_adv=np.zeros_like(img_adv)
             back_adv=output_img_adv
+            rec_img_adv=back_adv
             vd_adv=None
         else:
             vd_adv, rec_img_adv, op_adv = vectorize_postref(
@@ -239,7 +247,7 @@ for id,file in enumerate(files):
         plt.subplot(2, 5, 10)
         plt.imshow(rec_img_adv)
         plt.axis("off")
-        save_result(save_file,[img_adv,vd_adv,vd])
+        save_result(save_file,[img_adv,vd_adv,vd,args.protect])
         plt.savefig(os.path.join(save_dir, f'{args.attack}_{file[:-4]}.jpg'))
         plt.close()
         

@@ -21,6 +21,7 @@ def render_vd(vd: VectorData) -> np.ndarray:
         # load font data
         font_size, font_id, font_path = vd.tb_param[i].font_data.get_data()
         font = sku.get_textfont(font_id, font_size)
+        # print(vd.tb_param[i].text, font_id, font_size)
         textblob = sku.get_textblob(vd.tb_param[i].text, font)
         # get offsets
         offsets = get_offset(i, vd)

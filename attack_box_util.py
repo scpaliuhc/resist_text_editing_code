@@ -87,12 +87,11 @@ def get_parser_outs(img_norm,img_org,model):
     # ocr_outs=model.text_parser.ocr(fe)
     return TxIn,fe
 
-def get_parser_outs_with_fixed_ocr(img_norm,img_org,model,ocr):
+def get_parser_outs_with_fixed_ocr(img_norm,img_org,model,ocr_fixed):
     fe=model.backbone(img_norm)
     _,fe=model.down(fe)
-    # TxIn=model.text_parser(fe,img)
-    # ocr_outs_1 = model.text_parser.ocr(fe)
-    ocr_outs=ocr
+    ocr_outs_ = model.text_parser.ocr(fe)
+    ocr_outs=ocr_fixed
     bbox_information = get_bbox(
                 ocr_outs, (img_org.shape[2], img_org.shape[3]))
     text_instance_mask = bbox_information.get_text_instance_mask()
@@ -124,10 +123,10 @@ def get_parser_outs_with_fixed_ocr(img_norm,img_org,model,ocr):
             None,
             alpha_outs,
         )
-    return TxIn,fe
+    return TxIn,fe,ocr_outs_
 
-def predict_with_fixed_ocr(img_norm,img_org,model,ocr):
-    text_information,features=get_parser_outs_with_fixed_ocr(img_norm,img_org,model,ocr)
+def predict_with_fixed_ocr(img_norm,img_org,model,ocr_fixed):
+    text_information,features,ocr=get_parser_outs_with_fixed_ocr(img_norm,img_org,model,ocr_fixed)
     inpaint = model.inpaintor(img_org, text_information)
     inpaint = F.interpolate(inpaint, img_org.shape[2:4], mode="bilinear")
     rec = model.reconstractor(features, img_org, inpaint, text_information)
@@ -201,10 +200,10 @@ def gradient_based_attack(model,img,mean,std,args,dev,save_dir,mask,log,GT_ocr,t
             img_adv_norm=(img_adv-mean)/std
             img_adv_org=(img_adv-0.5)*2
             
-            if 2 in args.attack_p or 3 in args.attack_p or 4 in args.attack_p or 6 in args.attack_p or 6 in args.attack_p:
-                ADV_TxT,_=get_parser_outs_with_fixed_ocr(img_adv_norm,img_adv_org,model,ocr=GT_ocr)
-            else:
-                ADV_TxT,_=get_parser_outs(img_adv_norm,img_adv_org,model)
+            # if 2 in args.attack_p or 3 in args.attack_p or 4 in args.attack_p or 6 in args.attack_p or 6 in args.attack_p:
+            ADV_TxT,_,ocr_outs=get_parser_outs_with_fixed_ocr(img_adv_norm,img_adv_org,model,ocr_fixed=GT_ocr)
+            # else:
+            #     ADV_TxT,_=get_parser_outs(img_adv_norm,img_adv_org,model)
             model.zero_grad()
             
             if args.GLI in ['loc','ind']: 
@@ -213,12 +212,12 @@ def gradient_based_attack(model,img,mean,std,args,dev,save_dir,mask,log,GT_ocr,t
                 pert_l=args.lbd_pert*pert_loss(img_adv,img,None,ord=2)
             
             if 0 in args.attack_p:
-                ADV_word_out, _, _ = ADV_TxT.ocr_outs
+                ADV_word_out, _, _ = ocr_outs # 之前是ADV_TxT.ocr_outs，但是现在ADV_TxT.ocr_outs是img的ocr结果了
                 ADV_text_fg_pred, _, _ = ADV_word_out
                 ocr_l=ocr_loss(ADV_text_fg_pred,mask[1])
             
             if 1 in args.attack_p:
-                out=model.inpaintor((img_adv-0.5)*2,ADV_TxT)
+                out=model.inpaintor((img_adv-0.5)*2,ADV_TxT) # 用的是fixed ocr！！！
                 inpaint_l=inpaint_loss(out,target_inpaint,mask[2])
 
             if 2 in args.attack_p:#stro
@@ -238,7 +237,7 @@ def gradient_based_attack(model,img,mean,std,args,dev,save_dir,mask,log,GT_ocr,t
                     font_l=font_loss(ADV_TxT.font_outs,GT_font
                     ,index=None)
                 else:
-                    font_loss(ADV_TxT.font_outs,GT_font
+                    font_l=font_loss(ADV_TxT.font_outs,GT_font
                     ,index=args.protect)
 
             if 5 in args.attack_p:#stro
