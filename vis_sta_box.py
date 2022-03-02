@@ -193,5 +193,11 @@ def get_vd_from_adv(adv,dev,model):
     img_adv_np=(adv[0].data.cpu().permute(1, 2, 0).numpy()*255).astype(np.uint8)
     pil_img_adv = Image.fromarray(img_adv_np)
     img_size = torch.tensor([pil_img_adv.size[1], pil_img_adv.size[0]]).unsqueeze(0)
-    
+    img_adv_orig=(adv-0.5)*2
     inps = (img_adv_norm, None, img_size)
+    with torch.no_grad():
+        outs_adv = model(img_adv_norm, img_adv_orig)
+    vd_adv, _, _ = vectorize_postref(
+                    pil_img_adv, inps, outs_adv, model.reconstractor, 150, dev=dev
+                )
+    return vd_adv
