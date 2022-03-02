@@ -96,14 +96,14 @@ def generate(args):
                 occup=re[1]
             vs[file[:-4]]={'occup':occup,
                             'ssim_i':ssim_i,'psnr_i':psnr_i,'L1_i':L1_i,
-                            'ssim_o':ssim_o,'psnr_o':psnr_o,'L1_i':L1_o,
+                            'ssim_o':ssim_o,'psnr_o':psnr_o,'L1_o':L1_o,
                             'ssim_oa':ssim_oa,'psnr_oa':psnr_oa,'L1_oa':L1_oa,
                             'ssim_b':ssim_b,'psnr_b':psnr_b,'L1_b':L1_b,}
         
         else:            
             re=check_1(img_adv,vd,vd_adv,protect)
             vs[file[:-4]]={'ssim_i':ssim_i,'psnr_i':psnr_i,'L1_i':L1_i,
-                            'ssim_o':ssim_o,'psnr_o':psnr_o,'L1_i':L1_o,
+                            'ssim_o':ssim_o,'psnr_o':psnr_o,'L1_o':L1_o,
                             'ssim_oa':ssim_oa,'psnr_oa':psnr_oa,'L1_oa':L1_oa,
                             'ssim_b':ssim_b,'psnr_b':psnr_b,'L1_b':L1_b,
                             'text_content':re[0],'stroke':re[1],
