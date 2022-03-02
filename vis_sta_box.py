@@ -102,13 +102,15 @@ def Cal_IOU(coor1,coor2):
 def check_1(img_adv,vd,vd_adv,protect):
     texts=vd.get_texts()
     texts_adv=vd_adv.get_texts()
+   
     if protect is None:
         num_text_instance=len(texts)
+        # logg.debug(num_text_instance)
         index=[i for i in range(num_text_instance)]
-        logg.debug('protect is None')
+        logg.debug(f'protect is None: {index}')
     else:
         index=protect
-        logg.debug(protect)
+        logg.debug(f'index {protect}')
 
     
     
@@ -117,16 +119,17 @@ def check_1(img_adv,vd,vd_adv,protect):
     font=0
     shadow_visibility_flag=[]#
     stroke_visibility_flag=[]
-    index=[]
+    iou_index=[]
     blur=0
     offset=0
+
     for i in index:
         x1,y1,x2,y2=vd.tb_param[i].box
         for j in range(len(texts_adv)):
             x1_adv,y1_adv,x2_adv,y2_adv=vd_adv.tb_param[j].box
             iou=Cal_IOU((x1,y1,x2,y2),(x1_adv,y1_adv,x2_adv,y2_adv))
             if iou>0.9:#是同一个字
-                index.append((i,j))
+                iou_index.append((i,j))
                 if texts[i]==texts_adv[j]:#文字内容是否识别准确，但这个并不重要，内容可修改
                     txt_content+=1
                 if vd.effect_visibility[i].shadow_visibility_flag==vd_adv.effect_visibility[j].shadow_visibility_flag:
@@ -143,12 +146,12 @@ def check_1(img_adv,vd,vd_adv,protect):
                 
                 break
     try:
-        blur=blur/len(index)
-        offset=offset/len(index)
+        blur=blur/len(iou_index)
+        offset=offset/len(iou_index)
     except:
-        logg.debug(f'len of index is 0')
+        logg.debug(f'len of iou_index is 0')
 
-    return txt_content,stroke,shadow_visibility_flag,stroke_visibility_flag,font,blur,offset,index
+    return txt_content,stroke,shadow_visibility_flag,stroke_visibility_flag,font,blur,offset,iou_index
 
 def min_max_mean(lis):
     min_=1000
