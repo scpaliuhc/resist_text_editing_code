@@ -20,10 +20,10 @@ def load_record(file):
         protect=None
     return img_adv,vd_adv,vd,protect
 def ssim_psnr_L1(img1,img2):
-    ssim=ssim(img1,img2, data_range=1.).item()
-    psnr=psnr(img1,img2, data_range=1.).item()
-    L1=F.l1_loss(img1,img2,reduction='mean').item()
-    return ssim,psnr,L1
+    ssim_=ssim(img1,img2, data_range=1.).item()
+    psnr_=psnr(img1,img2, data_range=1.).item()
+    L1_=F.l1_loss(img1,img2,reduction='mean').item()
+    return ssim_,psnr_,L1_
 def draw_box(img,id,vd):
     x1,y1,x2,y2=vd.tb_param[id].box
     img=img.clone()
@@ -61,25 +61,22 @@ def pars_with_fixed_text_pred():
 def pred_with_fixed_text_pred():
     None
 
-def check_0(args,img_adv,vd,vd_adv,protect,):
-        num_text_instance=len(vd.get_texts())
-        num_text_instance_adv=len(vd_adv.get_texts())
-            
-        if protect is None:
-            index=[i for i in range(num_text_instance)]
-            logg.debug('protect is None')
-        else:
-            index=protect
-            print(protect)
-        if num_text_instance_adv==0:
-            IOU=0.
-        else:
-                #mask_IOU
-            re=mask_occup([img_adv.shape[2],img_adv.shape[3]],num_text_instance,vd,num_text_instance_adv,vd_adv,index)
-        return re
+def check_0(args,img_adv,vd,vd_adv,protect):
+    num_text_instance=len(vd.get_texts())
+    num_text_instance_adv=len(vd_adv.get_texts())       
+    if protect is None:
+        index=[i for i in range(num_text_instance)]
+        logg.debug('protect is None')
+    else:
+        index=protect
+        logg.debug(protect)
+    if num_text_instance_adv==0:
+        IOU=0.
+    else:
+        re=mask_occup([img_adv.shape[2],img_adv.shape[3]],num_text_instance,vd,num_text_instance_adv,vd_adv,index)
+    return re
 
 def Cal_IOU(coor1,coor2):
-
     x1,y1,x2,y2=coor1
     x1_adv,y1_adv,x2_adv,y2_adv=coor2
     # min_y1=min(y1,y1_adv)
@@ -102,16 +99,27 @@ def Cal_IOU(coor1,coor2):
 
 
 
-def check_1(img_adv,vd,vd_adv):
+def check_1(img_adv,vd,vd_adv,protect):
     texts=vd.get_texts()
     texts_adv=vd_adv.get_texts()
+    if protect is None:
+        num_text_instance=len(texts)
+        index=[i for i in range(num_text_instance)]
+        logg.debug('protect is None')
+    else:
+        index=protect
+        logg.debug(protect)
+
+    
+    
     txt_content=0
     stroke=0
     font=0
     shadow_visibility_flag=[]#
     stroke_visibility_flag=[]
     index=[]
-    for i in range(len(texts)):
+
+    for i in index:
         x1,y1,x2,y2=vd.tb_param[i].box
         for j in range(len(texts_adv)):
             x1_adv,y1_adv,x2_adv,y2_adv=vd_adv.tb_param[j].box

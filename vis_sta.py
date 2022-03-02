@@ -101,7 +101,7 @@ def generate(args):
                             'ssim_b':ssim_b,'psnr_b':psnr_b,'L1_b':L1_b,}
         
         else:            
-            re=check_1(img_adv,vd,vd_adv)
+            re=check_1(img_adv,vd,vd_adv,protect)
             vs[file[:-4]]={'ssim_i':ssim_i,'psnr_i':psnr_i,'L1_i':L1_i,
                             'ssim_o':ssim_o,'psnr_o':psnr_o,'L1_i':L1_o,
                             'ssim_oa':ssim_oa,'psnr_oa':psnr_oa,'L1_oa':L1_oa,
@@ -161,7 +161,10 @@ def static(args):
             print(e.args)
             print(os.path.join(args.attack_dir,res,f'{args.attack}_{file[:-4]}.b'))
             exit()
-        text_num.append(len(vd.get_texts()))
+        if protect is None:
+            text_num.append(len(vd.get_texts()))
+        else:
+            text_num.append(len(protect))
         dic=vs[file]
         ssim_i.append(dic['ssim_i'])
         psnr_i.append(dic['psnr_i'])
