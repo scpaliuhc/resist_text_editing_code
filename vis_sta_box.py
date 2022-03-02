@@ -6,14 +6,24 @@ from attack_box_util import *
 from PIL import Image
 from src.modules.postprocess.vector import  vectorize_postref
 from src.modules.postprocess.renderer import render_vd
+from piq import ssim, psnr
 #################攻击ocr####################
 #IOU:攻击前和攻击后text instance mask的重叠
 ############################################
 def load_record(file):
     with open(file,'rb') as f:
         record=pickle.load(f)
-    return record
-
+    if len(record)==4:
+        img_adv,vd_adv,vd,protect=record
+    else:
+        img_adv,vd_adv,vd=record
+        protect=None
+    return img_adv,vd_adv,vd,protect
+def ssim_psnr_L1(img1,img2):
+    ssim=ssim(img1,img2, data_range=1.).item()
+    psnr=psnr(img1,img2, data_range=1.).item()
+    L1=F.l1_loss(img1,img2,reduction='mean').item()
+    return ssim,psnr,L1
 def draw_box(img,id,vd):
     x1,y1,x2,y2=vd.tb_param[id].box
     img=img.clone()
