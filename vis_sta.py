@@ -16,12 +16,12 @@ parser.add_argument('--GLI',default='glo',type=str,choices=['loc','glo','ind'])
 parser.add_argument('--attack',default='bim')
 parser.add_argument('--attack_dir',default='result')
 parser.add_argument('--check_dir',default='check')
-parser.add_argument('--attack_p',type=int,nargs='+')#0 ocr
+parser.add_argument('--attack_p',type=int,nargs='+',required=True)#0 ocr
 parser.add_argument('-g','--gpuid',default=0,type=int)
 parser.add_argument('--T_visi',default=False,type=bool)
 
 def generate(args):
-    res=f'{args.GLI}_{args.process}_visi{1 if args.T_visi else 0}'
+    res=f'{args.GLI}_{args.attack_p}_visi{1 if args.T_visi else 0}'
     if args.gpuid<0:
         dev = torch.device(f"cpu")
     else:
@@ -45,9 +45,15 @@ def generate(args):
     for id,file in enumerate(files):
         logg.debug(f'{id}/{num} {file[:-4]}')
         vs={}
-
+        
         img = load_img(os.path.join(args.pics,file))
-        img_adv,vd_adv,vd,protect=load_record(os.path.join(args.attack_dir,res,f'{args.attack}_{file[:-4]}.b'))
+        try:
+            img_adv,vd_adv,vd,protect=load_record(os.path.join(args.attack_dir,res,f'{args.attack}_{file[:-4]}.b'))
+        except Exception as e:
+            # img_adv,vd_adv,vd,protect
+            print(e.args)
+            print(os.path.join(args.attack_dir,res,f'{args.attack}_{file[:-4]}.b'))
+            exit()
         img=img.to(dev)   
         img_adv=torch.tensor(img_adv.transpose((2,0,1)),dtype=torch.float32).unsqueeze(0)
         img_adv=img_adv.to(dev)
@@ -122,6 +128,7 @@ def static(args):
     with open(os.path.join(pick_dir1,check_file),'rb') as f:
         vs=pickle.load(f)
     for file in files:
+        None
         
 if __name__=='__main__':
     args=parser.parse_args()
