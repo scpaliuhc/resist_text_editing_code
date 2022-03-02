@@ -50,7 +50,7 @@ files.sort()
 mean_=torch.tensor([0.485, 0.456, 0.406],dtype=torch.float32).reshape((1,3,1,1)).to(dev)
 std_=torch.tensor([0.229, 0.224, 0.225],dtype=torch.float32).reshape((1,3,1,1)).to(dev)
 model = load_model(dev)
-save_dir=f'result/{args.GLI}_{args.attack_p}'
+save_dir=f'result/{args.GLI}_{args.attack_p}_visi{1 if args.T_visi else 0}'
 if args.reset:
     try:
         shutil.rmtree(save_dir)
