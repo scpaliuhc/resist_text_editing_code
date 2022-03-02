@@ -187,8 +187,8 @@ def static(args):
             font.append(dic['font'])
             iou_index.append(dic['iou_index'])
     #distance between images
-    min_ssim_i,max_ssim_i,mean_ssim_i,num_ssim_i=min_max_mean(ssim_i)
-    min_psnr_i,max_psnr_i,mean_psnr_i,num_psnr_i=min_max_mean(psnr_i)
+    min_max_mean_ssim_i=min_max_mean(ssim_i)
+    min_max_mean_psnr_i=min_max_mean(psnr_i)
     min_L1_i,max_L1_i,mean_L1_i,num_L1_i=min_max_mean(L1_i)
     
     min_ssim_o,max_ssim_o,mean_ssim_o,num_ssim_o=min_max_mean(ssim_o)
@@ -206,6 +206,8 @@ def static(args):
     #mask
     if 0 in args.attack_p:
         min_occup,max_occup,num_occup=min_max_mean(occup)
+        
+    
     else:
         #同一个字的区域,mask
         num_same_area=[len(i) for i in range(iou_index)]

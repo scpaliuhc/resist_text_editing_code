@@ -33,6 +33,8 @@ def mask_occup(shape,num_text_instance,vd,num_text_instance_adv,vd_adv,index):
     for i in range(num_text_instance_adv):
         x1,y1,x2,y2=vd_adv.tb_param[i].box
         mask2[y1:y2,x1:x2]=1
+
+
     mask=np.logical_and(mask1,mask2).astype(np.int8)
     area_=mask.sum()
     area1=mask1.sum()
@@ -106,15 +108,15 @@ def check_1(img_adv,vd,vd_adv):
             iou=Cal_IOU((x1,y1,x2,y2),(x1_adv,y1_adv,x2_adv,y2_adv))
             if iou>0.9:#是同一个字
                 index.append((i,j))
-                if texts[i]==texts[j]:#文字内容是否识别准确，但这个并不重要，内容可修改
+                if texts[i]==texts_adv[j]:#文字内容是否识别准确，但这个并不重要，内容可修改
                     txt_content+=1
-                if vd.effect_visibility[i].shadow_visibility_flag==vd_adv.effect_visibility[i].shadow_visibility_flag:
+                if vd.effect_visibility[i].shadow_visibility_flag==vd_adv.effect_visibility[j].shadow_visibility_flag:
                     shadow_visibility_flag.append(vd.effect_visibility[i].shadow_visibility_flag)
-                if vd.effect_visibility[i].stroke_visibility_flag==vd_adv.effect_visibility[i].stroke_visibility_flag:
+                if vd.effect_visibility[i].stroke_visibility_flag==vd_adv.effect_visibility[j].stroke_visibility_flag:
                     stroke_visibility_flag.append(vd.effect_visibility[i].stroke_visibility_flag)
-                if vd.effect_param[i].stroke_param.border_weight==vd_adv.effect_param[i].stroke_param.border_weight:
+                if vd.effect_param[i].stroke_param.border_weight==vd_adv.effect_param[j].stroke_param.border_weight:
                     stroke+=1
-                if vd.tb_param[i].font_data.font_id==vd_adv.tb_param[i].font_data.font_id:
+                if vd.tb_param[i].font_data.font_id==vd_adv.tb_param[j].font_data.font_id:
                     font+=1
                 break
     return txt_content,stroke,shadow_visibility_flag,stroke_visibility_flag,font,index
@@ -135,5 +137,10 @@ def min_max_mean(lis):
     mean=sum_/num
     return min_,max_,mean,num    
 
+def form_print(rows,value):
+    s=',min,max,mean,num\n'
+    for i in range(len(rows)):
+        s=s+f'{rows[i]},{value[i][0]:.4f},{value[i][1]:.4f},{value[i][2]:.4f},{value[i][3]:.4f}\n'
+    return s
 
 
