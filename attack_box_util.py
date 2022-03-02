@@ -125,8 +125,53 @@ def get_parser_outs_with_fixed_ocr(img_norm,img_org,model,ocr_fixed):
         )
     return TxIn,fe,ocr_outs_
 
+def get_parser_outs_with_fixed_pred_word_fg(img_norm,img_org,model,pred_word_fg,pred_char_fg):
+    fe=model.backbone(img_norm)
+    _,fe=model.down(fe)
+    ocr_outs = model.text_parser.ocr(fe)
+    ocr_outs = ((pred_word_fg,ocr_outs[0][1],ocr_outs[0][1]),(pred_char_fg,ocr_outs[1][1],ocr_outs[1][2]),ocr_outs[2])
+    bbox_information = get_bbox(
+                ocr_outs, (img_org.shape[2], img_org.shape[3]))
+    text_instance_mask = bbox_information.get_text_instance_mask()
+    text_instance_mask = torch.from_numpy(
+                text_instance_mask).to(model.text_parser.dev)
+    features_box, text_num = get_bb_level_features(
+            fe, text_instance_mask, model.training, 10, model.text_parser.dev
+        )
+    effect_visibility_outs = model.text_parser.effect_visibility(features_box)
+    effect_param_outs = model.text_parser.effect_param(features_box)
+    font_outs = model.text_parser.font(features_box)
+        
+        #font_size_outs = self.font_size(features_box)
+    alpha_outs = model.text_parser.alpha(fe, img_org)
+
+    batch_num = fe.shape[0]
+    effect_visibility_outs = convert_shape(
+            effect_visibility_outs, batch_num, text_num, False, 10
+        )
+    effect_param_outs = convert_shape(
+            effect_param_outs, batch_num, text_num, False, 10)
+    font_outs = convert_shape([font_outs], batch_num, text_num, False, 10)[0]
+    TxIn=TextInfo(
+            ocr_outs,#应该是替换后的还是替换前的？？
+            bbox_information,
+            effect_visibility_outs,
+            effect_param_outs,
+            font_outs,
+            None,
+            alpha_outs,
+        )
+    return TxIn,fe
+
 def predict_with_fixed_ocr(img_norm,img_org,model,ocr_fixed):
     text_information,features,ocr=get_parser_outs_with_fixed_ocr(img_norm,img_org,model,ocr_fixed)
+    inpaint = model.inpaintor(img_org, text_information)
+    inpaint = F.interpolate(inpaint, img_org.shape[2:4], mode="bilinear")
+    rec = model.reconstractor(features, img_org, inpaint, text_information)
+    return text_information, inpaint, rec
+
+def predict_with_fixed_pred_word_fg(img_norm,img_org,model,pred_word_fg,pred_char_fg):
+    text_information,features=get_parser_outs_with_fixed_pred_word_fg(img_norm,img_org,model,pred_word_fg,pred_char_fg)
     inpaint = model.inpaintor(img_org, text_information)
     inpaint = F.interpolate(inpaint, img_org.shape[2:4], mode="bilinear")
     rec = model.reconstractor(features, img_org, inpaint, text_information)
