@@ -40,6 +40,7 @@ def generate(args):
     files.sort()
     num=len(files)
     vs={}
+    count=0
     for id,file in enumerate(files):
         logg.debug(f'{id}/{num} {file[:-4]}') 
         img = load_img(os.path.join(args.pics,file))
@@ -55,6 +56,7 @@ def generate(args):
         img_adv=img_adv.to(dev)
         ssim_i,psnr_i,L1_i=ssim_psnr_L1(img_adv, img)
         if vd_adv is not None:
+            count+=1
             output_img = render_vd(vd)/255
             output_img_adv = render_vd(vd_adv)/255
             back_img = vd.bg/255
@@ -111,7 +113,7 @@ def generate(args):
                             'font':re[4],'blur':re[5],'offset':re[6],'iou_index':re[7]}
             
 
-
+    logg.debug(count)
     save_file=os.path.join(save_dir,f'{args.attack_p[0]}_check.b')
     save_result(save_file,vs)
 
@@ -129,7 +131,7 @@ def static(args):
         logg.error(f'{e.args} {os.path.join(pick_dir1,check_file)}')
         exit(1)
 
-    print(vs)
+    # print(vs)
 
     text_num=[]
     ssim_i=[]
@@ -231,11 +233,11 @@ def static(args):
         ratio_content=np.array(text_content)/np.array(text_num)
         min_max_mean_content=min_max_mean(ratio_content)
         #可见性
-        num_shadow_visibility_flag=[len(i) for i in range(shadow_visibility_flag)]
+        num_shadow_visibility_flag=[len(i) for i in shadow_visibility_flag]
         ratio_shadow_visibility_flag=np.array(num_shadow_visibility_flag)/np.array(text_num)
         min_max_mean_shadow_visibility_flag=min_max_mean(ratio_shadow_visibility_flag)
 
-        num_stroke_visibility_flag=[len(i) for i in range(stroke_visibility_flag)]
+        num_stroke_visibility_flag=[len(i) for i in stroke_visibility_flag]
         ratio_stroke_visibility_flag=np.array(num_stroke_visibility_flag)/np.array(text_num)
         min_max_mean_stroke_visibility_flag=min_max_mean(ratio_stroke_visibility_flag)
 

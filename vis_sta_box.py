@@ -63,7 +63,7 @@ def pred_with_fixed_text_pred():
 
 def check_0(args,img_adv,vd,vd_adv,protect):
     num_text_instance=len(vd.get_texts())
-    num_text_instance_adv=len(vd_adv.get_texts())       
+    num_text_instance_adv=len(vd_adv.get_texts())      
     if protect is None:
         index=[i for i in range(num_text_instance)]
         logg.debug('protect is None')
@@ -149,6 +149,8 @@ def check_1(img_adv,vd,vd_adv,protect):
         blur=blur/len(iou_index)
         offset=offset/len(iou_index)
     except:
+        blur=None
+        offset=None
         logg.debug(f'len of iou_index is 0')
 
     return txt_content,stroke,shadow_visibility_flag,stroke_visibility_flag,font,blur,offset,iou_index
