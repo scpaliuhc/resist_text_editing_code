@@ -223,7 +223,7 @@ def static(args):
 
     else:
         #同一个字的区域,mask
-        num_area=[len(i) for i in range(iou_index)]
+        num_area=[len(i) for i in iou_index]
         ratio_area=np.array(num_area)/np.array(text_num)
         min_max_mean_area=min_max_mean(ratio_area)
         
