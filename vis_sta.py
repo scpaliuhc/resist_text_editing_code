@@ -48,7 +48,14 @@ def generate(args):
         
         img = load_img(os.path.join(args.pics,file))
         try:
-            img_adv,vd_adv,vd,protect=load_record(os.path.join(args.attack_dir,res,f'{args.attack}_{file[:-4]}.b'))
+            record=load_record(os.path.join(args.attack_dir,res,f'{args.attack}_{file[:-4]}.b'))
+            # print(len(record),type(record[0]),type(record[1]),type(record[2]))
+            # exit()
+            if len(record)==4:
+                img_adv,vd_adv,vd,protect=record
+            else:
+                img_adv,vd_adv,vd=record
+                protect=None
         except Exception as e:
             # img_adv,vd_adv,vd,protect
             print(e.args)
@@ -127,8 +134,106 @@ def static(args):
     files.sort()
     with open(os.path.join(pick_dir1,check_file),'rb') as f:
         vs=pickle.load(f)
+    text_num=[]
+    ssim_i=[]
+    psnr_i=[]
+    L1_i=[]
+    ssim_o=[]
+    psnr_o=[]
+    L1_o=[]
+    ssim_oa=[]
+    psnr_oa=[]
+    L1_oa=[]
+    ssim_b=[]
+    psnr_b=[]
+    L1_b=[]
+    occup=[]
+    text_content=[]
+    stroke=[]
+    shadow_visibility_flag=[]
+    stroke_visibility_flag=[]
+    font=[]
+    iou_index=[]
     for file in files:
-        None
+        file = file[:-4]
+        try:
+            img_adv,vd_adv,vd,protect=load_record(os.path.join(args.attack_dir,res,f'{args.attack}_{file}.b'))
+        except Exception as e:
+            # img_adv,vd_adv,vd,protect
+            print(e.args)
+            print(os.path.join(args.attack_dir,res,f'{args.attack}_{file[:-4]}.b'))
+            exit()
+        text_num.append(len(vd.get_text()))
+        dic=vs[file]
+        ssim_i.append(dic['ssim_i'])
+        psnr_i.append(dic['psnr_i'])
+        L1_i.append(dic['L1_i'])
+        ssim_o.append(dic['ssim_o'])
+        psnr_o.append(dic['psnr_o'])
+        L1_o.append(dic['L1_o'])
+        ssim_oa.append(dic['ssim_oa'])
+        psnr_oa.append(dic['psnr_oa'])
+        L1_oa.append(dic['L1_oa'])
+        ssim_b.append(dic['ssim_b'])
+        psnr_b.append(dic['psnr_b'])
+        L1_b.append(dic['L1_b'])
+        if 0 in args.attack_p:
+            occup.append(dic['occup'])
+        else:
+            text_content.append(dic['text_content'])
+            stroke.append(dic['stroke'])
+            shadow_visibility_flag.append(dic['shadow_visibility_flag'])
+            stroke_visibility_flag.append(dic['stroke_visibility_flag'])
+            font.append(dic['font'])
+            iou_index.append(dic['iou_index'])
+    #distance between images
+    min_ssim_i,max_ssim_i,mean_ssim_i,num_ssim_i=min_max_mean(ssim_i)
+    min_psnr_i,max_psnr_i,mean_psnr_i,num_psnr_i=min_max_mean(psnr_i)
+    min_L1_i,max_L1_i,mean_L1_i,num_L1_i=min_max_mean(L1_i)
+    
+    min_ssim_o,max_ssim_o,mean_ssim_o,num_ssim_o=min_max_mean(ssim_o)
+    min_psnr_o,max_psnr_o,mean_psnr_o,num_psnr_o=min_max_mean(psnr_o)
+    min_L1_o,max_L1_o,mean_L1_o,num_L1_o=min_max_mean(L1_o)
+    
+    min_ssim_oa,max_ssim_oa,mean_ssim_oa,num_ssim_oa=min_max_mean(ssim_oa)
+    min_psnr_oa,max_psnr_oa,mean_psnr_oa,num_psnr_oa=min_max_mean(psnr_oa)
+    min_L1_oa,max_L1_oa,mean_L1_oa,num_L1_oa=min_max_mean(L1_oa)
+    
+    min_ssim_b,max_ssim_b,mean_ssim_b,num_ssim_b=min_max_mean(ssim_b)
+    min_psnr_b,max_psnr_b,mean_psnr_b,num_psnr_b=min_max_mean(psnr_b)
+    min_L1_b,max_L1_b,mean_L1_b,num_L1_b=min_max_mean(L1_b)
+
+    #mask
+    if 0 in args.attack_p:
+        min_occup,max_occup,num_occup=min_max_mean(occup)
+    else:
+        #同一个字的区域,mask
+        num_same_area=[len(i) for i in range(iou_index)]
+        ratio_same_area=np.array(num_same_area)/np.array(text_num)
+        min_same_area,max_same_area,mean_same_area,_=min_max_mean(ratio_same_area)
+        #相同内容的比例
+        ratio_same_content=np.array(txt_content)/np.array(text_num)
+        min_same_contetn,max_same_contetn,mean_same_contetn,_=min_max_mean(ratio_same_contetn)
+        #可见性
+        num_same_shadow_visibility_flag=[len(i) for i in range(shadow_visibility_flag)]
+        ratio_same_shadow_visibility_flag=np.array(num_same_shadow_visibility_flag)/np.array(text_num)
+        min_same_shadow_visibility_flag,max_same_shadow_visibility_flag,mean_same_shadow_visibility_flag,_=min_max_mean(ratio_same_shadow_visibility_flag)
+
+        num_same_stroke_visibility_flag=[len(i) for i in range(stroke_visibility_flag)]
+        ratio_same_stroke_visibility_flag=np.array(num_same_stroke_visibility_flag)/np.array(text_num)
+        min_same_stroke_visibility_flag,max_same_stroke_visibility_flag,mean_same_stroke_visibility_flag,_=min_max_mean(ratio_same_stroke_visibility_flag)
+
+        #stroke 
+        ratio_same_stroke=np.array(stroke)/np.array(text_num)
+        min_same_stroke,max_same_stroke,mean_same_stroke,_=min_max_mean(ratio_same_stroke)
+
+        #font
+        ratio_same_font=np.array(font)/np.array(text_num)
+        min_same_font,max_same_font,mean_same_font,_=min_max_mean(ratio_same_font)
+
+
+
+    
         
 if __name__=='__main__':
     args=parser.parse_args()

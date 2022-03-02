@@ -33,8 +33,6 @@ def mask_occup(shape,num_text_instance,vd,num_text_instance_adv,vd_adv,index):
     for i in range(num_text_instance_adv):
         x1,y1,x2,y2=vd_adv.tb_param[i].box
         mask2[y1:y2,x1:x2]=1
-
-
     mask=np.logical_and(mask1,mask2).astype(np.int8)
     area_=mask.sum()
     area1=mask1.sum()
@@ -59,7 +57,8 @@ def check_0(args,img_adv,vd,vd_adv,protect,):
             index=[i for i in range(num_text_instance)]
             logg.debug('protect is None')
         else:
-            index=args.protect
+            index=protect
+            print(protect)
         if num_text_instance_adv==0:
             IOU=0.
         else:
@@ -93,7 +92,7 @@ def Cal_IOU(coor1,coor2):
 
 def check_1(img_adv,vd,vd_adv):
     texts=vd.get_texts()
-    texts_adv=img_adv.get_texts()
+    texts_adv=vd_adv.get_texts()
     txt_content=0
     stroke=0
     font=0
@@ -109,17 +108,32 @@ def check_1(img_adv,vd,vd_adv):
                 index.append((i,j))
                 if texts[i]==texts[j]:#文字内容是否识别准确，但这个并不重要，内容可修改
                     txt_content+=1
-                if vd.effect_visibility[i].shadow_visibility_flag==vd.vd_adv.effect_visibility[i].shadow_visibility_flag:
-                    shadow_visibility_flag.apped(vd.effect_visibility[i].shadow_visibility_flag)
-                if vd.effect_visibility[i].stroke_visibility_flag==vd.vd_adv.effect_visibility[i].stroke_visibility_flag:
-                    stroke_visibility_flag.apped(vd.effect_visibility[i].stroke_visibility_flag)
+                if vd.effect_visibility[i].shadow_visibility_flag==vd_adv.effect_visibility[i].shadow_visibility_flag:
+                    shadow_visibility_flag.append(vd.effect_visibility[i].shadow_visibility_flag)
+                if vd.effect_visibility[i].stroke_visibility_flag==vd_adv.effect_visibility[i].stroke_visibility_flag:
+                    stroke_visibility_flag.append(vd.effect_visibility[i].stroke_visibility_flag)
                 if vd.effect_param[i].stroke_param.border_weight==vd_adv.effect_param[i].stroke_param.border_weight:
                     stroke+=1
-                if vd.tb_param[i].font_data.font_id==vd.tb_param[i].font_data.font_id:
+                if vd.tb_param[i].font_data.font_id==vd_adv.tb_param[i].font_data.font_id:
                     font+=1
                 break
-    return txt_content,stroke,shadow_visibility_flag,stroke_visibility_flag
+    return txt_content,stroke,shadow_visibility_flag,stroke_visibility_flag,font,index
 
-        
+def min_max_mean(lis):
+    min_=1000
+    max_=0
+    num=0
+    sum_=0
+    for ele in lis:
+        if ele is not None:
+            num+=1
+            sum_+=ele
+            if ele<min_:
+                min_=ele
+            if ele>max_:
+                max_=ele
+    mean=sum_/num
+    return min_,max_,mean,num    
+
 
 
