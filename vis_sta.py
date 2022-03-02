@@ -108,7 +108,7 @@ def generate(args):
                             'ssim_b':ssim_b,'psnr_b':psnr_b,'L1_b':L1_b,
                             'text_content':re[0],'stroke':re[1],
                             'shadow_visibility_flag':re[2],'stroke_visibility_flag':re[3],
-                            'font':re[4],'iou_index':re[5]}
+                            'font':re[4],'blur':re[5],'offset':re[6],'iou_index':re[7]}
             
 
 
@@ -151,7 +151,8 @@ def static(args):
     stroke_visibility_flag=[]
     font=[]
     iou_index=[]
-    
+    blur=[]
+    offset=[]
     for file in files:
         file = file[:-4]
         try:
@@ -187,6 +188,8 @@ def static(args):
             stroke_visibility_flag.append(dic['stroke_visibility_flag'])
             font.append(dic['font'])
             iou_index.append(dic['iou_index'])
+            blur.append(dic['blur'])
+            offset.append(dic['offset'])
     #distance between images
     min_max_mean_ssim_i=min_max_mean(ssim_i)
     min_max_mean_psnr_i=min_max_mean(psnr_i)
@@ -243,9 +246,15 @@ def static(args):
         #font
         ratio_font=np.array(font)/np.array(text_num)
         min_max_mean_font=min_max_mean(ratio_font)
+        
+        #blur
+        min_max_mean_blur=min_max_mean(blur)
 
-        rows=rows+['area','content','shadow_v','stroke_v','stroke','font']
-        values=values+[min_max_mean_area,min_max_mean_content,min_max_mean_shadow_visibility_flag,min_max_mean_stroke_visibility_flag,min_max_mean_stroke,min_max_mean_font]
+        #offset
+        min_max_mean_offset=min_max_mean(offset)
+
+        rows=rows+['area','content','shadow_v','stroke_v','stroke','shadow_blur','shadow_off','font']
+        values=values+[min_max_mean_area,min_max_mean_content,min_max_mean_shadow_visibility_flag,min_max_mean_stroke_visibility_flag,min_max_mean_stroke,min_max_mean_blur,min_max_mean_offset,min_max_mean_font]
     
     s=form_print(rows,values)
     with open(os.path.join(pick_dir1,'format.txt'),'w') as f:

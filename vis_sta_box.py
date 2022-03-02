@@ -118,7 +118,8 @@ def check_1(img_adv,vd,vd_adv,protect):
     shadow_visibility_flag=[]#
     stroke_visibility_flag=[]
     index=[]
-
+    blur=0
+    offset=0
     for i in index:
         x1,y1,x2,y2=vd.tb_param[i].box
         for j in range(len(texts_adv)):
@@ -136,8 +137,18 @@ def check_1(img_adv,vd,vd_adv,protect):
                     stroke+=1
                 if vd.tb_param[i].font_data.font_id==vd_adv.tb_param[j].font_data.font_id:
                     font+=1
+                
+                blur+=np.abs(vd.effect_param[i].shadow_param.blur[0,0]-vd_adv.effect_param[j].shadow_param.blur[0,0])
+                offset+=np.sqrt(np.square(vd.effect_param[i].shadow_param.offset_y-vd_adv.effect_param[j].shadow_param.offset_y)+np.square(vd.effect_param[i].shadow_param.offset_x-vd_adv.effect_param[j].shadow_param.offset_x))
+                
                 break
-    return txt_content,stroke,shadow_visibility_flag,stroke_visibility_flag,font,index
+    try:
+        blur=blur/len(index)
+        offset=offset/len(index)
+    except:
+        logg.debug(f'len of index is 0')
+
+    return txt_content,stroke,shadow_visibility_flag,stroke_visibility_flag,font,blur,offset,index
 
 def min_max_mean(lis):
     min_=1000
