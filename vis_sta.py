@@ -51,6 +51,8 @@ def generate(args):
             print(e.args)
             print(os.path.join(args.attack_dir,res,f'{args.attack}_{file[:-4]}.b'))
             exit()
+        
+            
         img=img.to(dev)   
         img_adv=torch.tensor(img_adv.transpose((2,0,1)),dtype=torch.float32).unsqueeze(0)
         img_adv=img_adv.to(dev)
