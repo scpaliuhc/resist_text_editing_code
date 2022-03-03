@@ -61,7 +61,7 @@ def generate(args):
         img_adv=img_adv.to(dev)
         if args.replace:
             vd_adv=get_vd_from_adv(img_adv,dev,model)
-        ssim_i,psnr_i,L1_i=ssim_psnr_L1(img_adv, img)
+        ssim_i,psnr_i,L1_i=ssim_psnr_L1(torch.clamp(img_adv,0.,1.), torch.clamp(img,0.,1.))
         if vd_adv is not None:
             count+=1
             output_img = render_vd(vd)/255
@@ -73,15 +73,15 @@ def generate(args):
                 output_img_adv=torch.tensor(output_img_adv).permute(2,0,1).unsqueeze(0).to(dev)
                 back_img=torch.tensor(back_img).permute(2,0,1).unsqueeze(0)
                 back_img_adv=torch.tensor(back_img_adv).permute(2,0,1).unsqueeze(0)
-                ssim_o,psnr_o,L1_o=ssim_psnr_L1(output_img, img)
+                ssim_o,psnr_o,L1_o=ssim_psnr_L1(torch.clamp(output_img,0.,1.), torch.clamp(img,0.,1.))
                 # ssim_o=ssim(output_img, img, data_range=1.).item()
                 # psnr_o=psnr(output_img, img, data_range=1.).item()
                 # L1_o=F.l1_loss(output_img, img,reduction='mean').item()
-                ssim_oa,psnr_oa,L1_oa=ssim_psnr_L1(output_img_adv, img)
+                ssim_oa,psnr_oa,L1_oa=ssim_psnr_L1(torch.clamp(output_img_adv,0.,1.), torch.clamp(img,0.,1.))
                 # ssim_oa=ssim(output_img_adv, img, data_range=1.).item()
                 # psnr_oa=psnr(output_img_adv, img, data_range=1.).item()
                 # L1_oa=F.l1_loss(output_img_adv, img,reduction='mean').item()
-                ssim_b,psnr_b,L1_b=ssim_psnr_L1(back_img,back_img_adv)
+                ssim_b,psnr_b,L1_b=ssim_psnr_L1(torch.clamp(back_img,0.,1.),torch.clamp(back_img_adv,0.,1.))
                 # ssim_b=ssim(back_img,back_img_adv, data_range=1.).item()
                 # psnr_b=psnr(back_img,back_img_adv, data_range=1.).item()
                 # L1_b=F.l1_loss(back_img,back_img_adv,reduction='mean').item()
