@@ -20,6 +20,7 @@ parser.add_argument('--attack_p',type=int,nargs='+',required=True)#0 ocr
 parser.add_argument('-g','--gpuid',default=0,type=int)
 parser.add_argument('--T_visi',default=False,type=bool)
 parser.add_argument('--gs',default=0,type=int)
+parser.add_argument('--replace',default=False,type=bool)
 
 def generate(args):
     res=f'{args.GLI}_{args.attack_p}_visi{1 if args.T_visi else 0}'
@@ -27,7 +28,10 @@ def generate(args):
         dev = torch.device(f"cpu")
     else:
         dev = torch.device(f"cuda:{args.gpuid}")
-    save_dir=os.path.join(args.check_dir,res)
+    if args.replace:
+        save_dir=os.path.join(args.check_dir,res,'replace')
+    else:
+        save_dir=os.path.join(args.check_dir,res)
     try:
         os.makedirs(save_dir)
     except:
@@ -52,10 +56,11 @@ def generate(args):
             print(os.path.join(args.attack_dir,res,f'{args.attack}_{file[:-4]}.b'))
             exit()
         
-            
         img=img.to(dev)   
         img_adv=torch.tensor(img_adv.transpose((2,0,1)),dtype=torch.float32).unsqueeze(0)
         img_adv=img_adv.to(dev)
+        if args.replace:
+            vd_adv=get_vd_from_adv(img_adv,dev,model)
         ssim_i,psnr_i,L1_i=ssim_psnr_L1(img_adv, img)
         if vd_adv is not None:
             count+=1
@@ -121,7 +126,11 @@ def generate(args):
 
 def static(args):
     res=f'{args.GLI}_{args.attack_p}_visi{1 if args.T_visi else 0}'
-    pick_dir1=os.path.join(args.check_dir,res)
+    if args.replace:
+        pick_dir1=os.path.join(args.check_dir,res,'replace')
+    else:
+        pick_dir1=os.path.join(args.check_dir,res)
+    # pick_dir1=os.path.join(args.check_dir,res)
     pick_dir2=os.path.join(args.attack_dir,res)
     check_file = f'{args.attack_p[0]}_check.b'
     files = os.listdir(args.pics)

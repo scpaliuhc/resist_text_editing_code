@@ -177,4 +177,27 @@ def form_print(rows,value):
         s=s+f'{rows[i]},{value[i][0]:.4f},{value[i][1]:.4f},{value[i][2]:.4f},{value[i][3]:.4f}\n'
     return s
 
+def get_vd_from_adv(adv,dev,model):
+    # img 0-1
+    # img_norm img-mean/std
+    # img_org -1 1
+    mean_=torch.tensor([0.485, 0.456, 0.406],dtype=torch.float32).reshape((1,3,1,1)).to(dev)
+    std_=torch.tensor([0.229, 0.224, 0.225],dtype=torch.float32).reshape((1,3,1,1)).to(dev)
+    # vd_adv, _, _ = vectorize_postref(
+    #                 pil_img_adv, inps, outs_adv, model.reconstractor, 150, dev=dev
+    #             )
 
+    # return vd_adv
+    img_adv_norm=(adv-mean_)/std_
+    
+    img_adv_np=(adv[0].data.cpu().permute(1, 2, 0).numpy()*255).astype(np.uint8)
+    pil_img_adv = Image.fromarray(img_adv_np)
+    img_size = torch.tensor([pil_img_adv.size[1], pil_img_adv.size[0]]).unsqueeze(0)
+    img_adv_orig=(adv-0.5)*2
+    inps = (img_adv_norm, None, img_size)
+    with torch.no_grad():
+        outs_adv = model(img_adv_norm, img_adv_orig)
+    vd_adv, a = vectorize_postref(
+                    pil_img_adv, inps, outs_adv, model.reconstractor, 150, dev=dev
+                )
+    return vd_adv
