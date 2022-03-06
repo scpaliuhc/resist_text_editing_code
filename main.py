@@ -148,14 +148,14 @@ for id,file in enumerate(files):
             for i in args.protect:
                 y1,y2,x1,x2=inds[i]
                 pro_mask[:,:,y1:y2,x1:x2]=1.
-                pro_mask_=F.interpolate(pro_mask,scale_factor=GT_text_fg_pred.shape[2]/img.shape[2])# pre.shape
-                pro_mask_256=F.interpolate(pro_mask,(256,256))# 256
-                word_mask_=word_mask_*pro_mask_
-                word_mask=word_mask*pro_mask
-                word_mask_256=word_mask_256*pro_mask_256
-                word_keep_rows, word_keep_cols = np.where(word_mask.data.cpu().numpy()[0,0] ==1.0)
-                word_keep_rows_, word_keep_cols_ = np.where(word_mask_.data.cpu().numpy()[0,0] ==1.0)
-                word_keep_rows_256, word_keep_cols_256 = np.where(word_mask_256.data.cpu().numpy()[0,0] ==1.0)
+            pro_mask_=F.interpolate(pro_mask,scale_factor=GT_text_fg_pred.shape[2]/img.shape[2])# pre.shape
+            pro_mask_256=F.interpolate(pro_mask,(256,256))# 256
+            word_mask_=word_mask_*pro_mask_
+            word_mask=word_mask*pro_mask
+            word_mask_256=word_mask_256*pro_mask_256
+            word_keep_rows, word_keep_cols = np.where(word_mask.data.cpu().numpy()[0,0] ==1.0)
+            word_keep_rows_, word_keep_cols_ = np.where(word_mask_.data.cpu().numpy()[0,0] ==1.0)
+            word_keep_rows_256, word_keep_cols_256 = np.where(word_mask_256.data.cpu().numpy()[0,0] ==1.0)
         word_mask_c_=[word_mask_,word_keep_rows_,word_keep_cols_]
         word_mask_c=[word_mask,word_keep_rows,word_keep_cols]
         word_mask_c_256=[word_mask_256,word_keep_rows_256, word_keep_cols_256]
