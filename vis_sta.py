@@ -99,15 +99,27 @@ def generate(args):
 
         if 0 in args.attack_p:
             if vd_adv is None:
-                occup=0.
+                # occup=0.
+                # txt_content=0
+                # stroke=0
+                # font=0
+                # shadow_visibility_flag=[]#
+                # stroke_visibility_flag=[]
+                # iou_index=[]
+                # blur=0
+                # offset=0
+                re=[0,0,[],[],0,None,None,[],0]
             else:     
                 re=check_0(args,img_adv,vd,vd_adv,protect)
-                occup=re[1]
-            vs[file[:-4]]={'occup':occup,
+            vs[file[:-4]]={
                             'ssim_i':ssim_i,'psnr_i':psnr_i,'L1_i':L1_i,
                             'ssim_o':ssim_o,'psnr_o':psnr_o,'L1_o':L1_o,
                             'ssim_oa':ssim_oa,'psnr_oa':psnr_oa,'L1_oa':L1_oa,
-                            'ssim_b':ssim_b,'psnr_b':psnr_b,'L1_b':L1_b,}
+                            'ssim_b':ssim_b,'psnr_b':psnr_b,'L1_b':L1_b,
+                            'text_content':re[0],'stroke':re[1],
+                            'shadow_visibility_flag':re[2],'stroke_visibility_flag':re[3],
+                            'font':re[4],'blur':re[5],'offset':re[6],'iou_index':re[7],
+                            'occup':re[8]}
         
         else:            
             re=check_1(img_adv,vd,vd_adv,protect)
@@ -180,6 +192,10 @@ def static(args):
         else:
             text_num.append(len(protect))
         dic=vs[file]
+        if dic['text_content']!=0:
+            logg.debug(f"{file} {dic['text_content']} {dic['iou_index']}")
+            for item in dic['iou_index']:
+                logg.debug(f"{item} {vd.get_texts()[item[0]]} {vd_adv.get_texts()[item[1]]}")
         ssim_i.append(dic['ssim_i'])
         psnr_i.append(dic['psnr_i'])
         L1_i.append(dic['L1_i'])
@@ -194,15 +210,15 @@ def static(args):
         L1_b.append(dic['L1_b'])
         if 0 in args.attack_p:
             occup.append(dic['occup'])
-        else:
-            text_content.append(dic['text_content'])
-            stroke.append(dic['stroke'])
-            shadow_visibility_flag.append(dic['shadow_visibility_flag'])
-            stroke_visibility_flag.append(dic['stroke_visibility_flag'])
-            font.append(dic['font'])
-            iou_index.append(dic['iou_index'])
-            blur.append(dic['blur'])
-            offset.append(dic['offset'])
+        # else:
+        text_content.append(dic['text_content'])
+        stroke.append(dic['stroke'])
+        shadow_visibility_flag.append(dic['shadow_visibility_flag'])
+        stroke_visibility_flag.append(dic['stroke_visibility_flag'])
+        font.append(dic['font'])
+        iou_index.append(dic['iou_index'])
+        blur.append(dic['blur'])
+        offset.append(dic['offset'])
     #distance between images
     min_max_mean_ssim_i=min_max_mean(ssim_i)
     min_max_mean_psnr_i=min_max_mean(psnr_i)
@@ -234,7 +250,8 @@ def static(args):
         rows=rows+['occup']
         values=values+[min_max_mean_occup]
 
-    else:
+    # else:
+    if True:
         #同一个字的区域,mask
         num_area=[len(i) for i in iou_index]
         ratio_area=np.array(num_area)/np.array(text_num)

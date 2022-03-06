@@ -70,11 +70,46 @@ def check_0(args,img_adv,vd,vd_adv,protect):
     else:
         index=protect
         logg.debug(protect)
-    if num_text_instance_adv==0:
-        IOU=0.
-    else:
-        re=mask_occup([img_adv.shape[2],img_adv.shape[3]],num_text_instance,vd,num_text_instance_adv,vd_adv,index)
-    return re
+    txt_content=0
+    stroke=0
+    font=0
+    shadow_visibility_flag=[]#
+    stroke_visibility_flag=[]
+    iou_index=[]
+    blur=0
+    offset=0
+    
+    for i in index:
+            x1,y1,x2,y2=vd.tb_param[i].box
+            for j in range(len(vd_adv.get_texts())):
+                x1_adv,y1_adv,x2_adv,y2_adv=vd_adv.tb_param[j].box
+                iou=Cal_IOU((x1,y1,x2,y2),(x1_adv,y1_adv,x2_adv,y2_adv))
+                if iou>0.9:#是同一个字
+                    iou_index.append((i,j))
+                    if vd.get_texts()[i]==vd_adv.get_texts()[j]:#文字内容是否识别准确，但这个并不重要，内容可修改
+                        txt_content+=1
+                    if vd.effect_visibility[i].shadow_visibility_flag==vd_adv.effect_visibility[j].shadow_visibility_flag:
+                        shadow_visibility_flag.append(vd.effect_visibility[i].shadow_visibility_flag)
+                    if vd.effect_visibility[i].stroke_visibility_flag==vd_adv.effect_visibility[j].stroke_visibility_flag:
+                        stroke_visibility_flag.append(vd.effect_visibility[i].stroke_visibility_flag)
+                    if vd.effect_param[i].stroke_param.border_weight==vd_adv.effect_param[j].stroke_param.border_weight:
+                        stroke+=1
+                    if vd.tb_param[i].font_data.font_id==vd_adv.tb_param[j].font_data.font_id:
+                        font+=1
+                    
+                    blur+=np.abs(vd.effect_param[i].shadow_param.blur[0,0]-vd_adv.effect_param[j].shadow_param.blur[0,0])
+                    offset+=np.sqrt(np.square(vd.effect_param[i].shadow_param.offset_y-vd_adv.effect_param[j].shadow_param.offset_y)+np.square(vd.effect_param[i].shadow_param.offset_x-vd_adv.effect_param[j].shadow_param.offset_x))
+                    
+                    break
+    try:
+        blur=blur/len(iou_index)
+        offset=offset/len(iou_index)
+    except:
+        blur=None
+        offset=None
+        logg.debug(f'len of iou_index is 0')
+    re=mask_occup([img_adv.shape[2],img_adv.shape[3]],num_text_instance,vd,num_text_instance_adv,vd_adv,index)
+    return txt_content,stroke,shadow_visibility_flag,stroke_visibility_flag,font,blur,offset,iou_index,re[1]
 
 def Cal_IOU(coor1,coor2):
     x1,y1,x2,y2=coor1
@@ -168,7 +203,7 @@ def min_max_mean(lis):
                 min_=ele
             if ele>max_:
                 max_=ele
-    mean=sum_/num
+    mean=sum_/num if num!=0 else None
     return min_,max_,mean,num    
 
 def form_print(rows,value):
