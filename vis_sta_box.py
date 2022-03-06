@@ -235,7 +235,7 @@ def get_vd_from_adv(adv,dev,model):
     inps = (img_adv_norm, None, img_size)
     with torch.no_grad():
         outs_adv = model(img_adv_norm, img_adv_orig)
-    vd_adv, a = vectorize_postref(
+    vd_adv, _, _ = vectorize_postref(
                     pil_img_adv, inps, outs_adv, model.reconstractor, 150, dev=dev
                 )
     return vd_adv

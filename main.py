@@ -66,10 +66,10 @@ if args.log:
     log.write('***'+t+'***\n')
     log.write(str(args)+'\n')
     log.flush()
-finished=os.listdir(save_dir)
+# finished=os.listdir(save_dir)
 for id,file in enumerate(files):
-    if f'{args.attack}_{file[:-4]}.b' in finished:
-        continue
+    # if f'{args.attack}_{file[:-4]}.b' in finished:
+    #     continue
     try:
         logg.debug(f"{id}/{total} {file}")
         
