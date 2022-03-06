@@ -209,7 +209,10 @@ def min_max_mean(lis):
 def form_print(rows,value):
     s=',min,max,mean,num\n'
     for i in range(len(rows)):
-        s=s+f'{rows[i]},{value[i][0]:.4f},{value[i][1]:.4f},{value[i][2]:.4f},{value[i][3]:.4f}\n'
+        if value[i][2] is not None:
+            s=s+f'{rows[i]},{value[i][0]:.4f},{value[i][1]:.4f},{value[i][2]:.4f},{value[i][3]:.4f}\n'
+        else:
+            s=s+f'{rows[i]},{value[i][0]:.4f},{value[i][1]:.4f},{value[i][2]},{value[i][3]:.4f}\n'
     return s
 
 def get_vd_from_adv(adv,dev,model):
