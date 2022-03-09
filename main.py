@@ -70,7 +70,8 @@ if args.log:
 for id,file in enumerate(files):
     # if f'{args.attack}_{file[:-4]}.b' in finished:
     #     continue
-    try:
+    # try:
+    if True:
         logg.debug(f"{id}/{total} {file}")
         
         img=load_img(os.path.join(args.data_dir,file))
@@ -110,8 +111,8 @@ for id,file in enumerate(files):
         GT_ocr=GT.ocr_outs
         GT_fonts=torch.argmax(torch.softmax(torch.tensor(op.font_outs[0,:,:,0,0],dtype=torch.float32).to(dev),1),1)
         GT_stroke=torch.argmax(torch.softmax(torch.tensor(op.stroke_param_outs[0,:,:,0,0],dtype=torch.float32).to(dev),1),1)
-        GT_shadow_sig=op.shadow_param_sig_outs
-        GT_shadow_tanh=op.shadow_param_tanh_outs
+        GT_shadow_sig=torch.tensor(op.shadow_param_sig_outs,dtype=torch.float32).to(dev)
+        GT_shadow_tanh=torch.tensor(op.shadow_param_tanh_outs,dtype=torch.float32).to(dev)
         logg.debug(vd.get_texts())
         logg.debug(vd.get_font_names())
         text_mask_clean=outs[0].bbox_information.get_text_instance_mask()[0]
@@ -166,89 +167,87 @@ for id,file in enumerate(files):
         img=img.detach().clone()
         log.write(f"{id}/{total} {file}\n")
         img_adv=gradient_based_attack(model,img,mean_,std_,args,dev,save_dir,mask,log,GT_ocr,target_inpaint,GT_fonts,GT_stroke,GT_shadow_sig,GT_shadow_tanh)
+    # except Exception as e:
+    #     print(e.args)
+    #     log.write(f'{e.args}\n')
+    #     log.flush()
+    # finally:
+    #     logg.debug('derendering for adv')
         
-        #font_GT,stroke_GT,shadow_sig_GT,shadow_tanh_GT)
-    except Exception as e:
-        print(e.args)
-        log.write(f'{e.args}\n')
-        log.flush()
-    finally:
-        logg.debug('derendering for adv')
-        
-        img_adv_norm=(img_adv-mean_)/std_
-        img_adv_orig=(img_adv-0.5)*2
-        img_adv_np=(img_adv[0].data.cpu().permute(1, 2, 0).numpy()*255).astype(np.uint8)
-        pil_img_adv = Image.fromarray(img_adv_np)
-        inps = (img_adv_norm, None, img_size)
-        img_adv=img_adv.data.cpu().numpy()[0].transpose(1,2,0)    
-        if 0 in args.attack_p or 1 in args.attack_p:
-            with torch.no_grad():
-                outs_adv = model(img_adv_norm, img_adv_orig)
-        else:
-            logg.debug('predict_with_fixed_ocr')
-            with torch.no_grad():
-                outs_adv = predict_with_fixed_ocr(img_adv_norm, img_adv_orig, model,GT_ocr)
-        if outs_adv[0].font_outs.shape[1]==0:
-            logg.error(f"{outs_adv[0].font_outs.shape}")
-            log.write(f'[error]-adv: {outs_adv[0].font_outs.shape}\n')
-            output_img_adv=np.zeros_like(img_adv)
-            back_adv=output_img_adv
-            rec_img_adv=back_adv
-            vd_adv=None
-        else:
-            vd_adv, rec_img_adv, op_adv = vectorize_postref(
-                    pil_img_adv, inps, outs_adv, model.reconstractor, args.iter2, dev=dev
-                )
-            rec_img_adv = torch.max(
-                        torch.min(
-                            rec_img_adv,
-                            torch.zeros_like(rec_img_adv) +
-                            255),
-                        torch.zeros_like(rec_img_adv))
-            rec_img_adv=rec_img_adv.data.cpu().numpy()[0].transpose(1, 2, 0)/255
-            output_img_adv = render_vd(vd_adv)
-            back_adv=vd_adv.bg.astype(np.uint8)
-            logg.debug(vd_adv.get_texts())
-            logg.debug(vd_adv.get_font_names())
-        text_mask_adv=outs_adv[0].bbox_information.get_text_instance_mask()[0]
+    #     img_adv_norm=(img_adv-mean_)/std_
+    #     img_adv_orig=(img_adv-0.5)*2
+    #     img_adv_np=(img_adv[0].data.cpu().permute(1, 2, 0).numpy()*255).astype(np.uint8)
+    #     pil_img_adv = Image.fromarray(img_adv_np)
+    #     inps = (img_adv_norm, None, img_size)
+    #     img_adv=img_adv.data.cpu().numpy()[0].transpose(1,2,0)    
+    #     if 0 in args.attack_p or 1 in args.attack_p:
+    #         with torch.no_grad():
+    #             outs_adv = model(img_adv_norm, img_adv_orig)
+    #     else:
+    #         logg.debug('predict_with_fixed_ocr')
+    #         with torch.no_grad():
+    #             outs_adv = predict_with_fixed_ocr(img_adv_norm, img_adv_orig, model,GT_ocr)
+    #     if outs_adv[0].font_outs.shape[1]==0:
+    #         logg.error(f"{outs_adv[0].font_outs.shape}")
+    #         log.write(f'[error]-adv: {outs_adv[0].font_outs.shape}\n')
+    #         output_img_adv=np.zeros_like(img_adv)
+    #         back_adv=output_img_adv
+    #         rec_img_adv=back_adv
+    #         vd_adv=None
+    #     else:
+    #         vd_adv, rec_img_adv, op_adv = vectorize_postref(
+    #                 pil_img_adv, inps, outs_adv, model.reconstractor, args.iter2, dev=dev
+    #             )
+    #         rec_img_adv = torch.max(
+    #                     torch.min(
+    #                         rec_img_adv,
+    #                         torch.zeros_like(rec_img_adv) +
+    #                         255),
+    #                     torch.zeros_like(rec_img_adv))
+    #         rec_img_adv=rec_img_adv.data.cpu().numpy()[0].transpose(1, 2, 0)/255
+    #         output_img_adv = render_vd(vd_adv)
+    #         back_adv=vd_adv.bg.astype(np.uint8)
+    #         logg.debug(vd_adv.get_texts())
+    #         logg.debug(vd_adv.get_font_names())
+    #     text_mask_adv=outs_adv[0].bbox_information.get_text_instance_mask()[0]
         
         
-        img=img.data.cpu().numpy()[0].transpose(1,2,0)
-        log.flush()
-        fig=plt.figure(figsize=(65, 30))
-        plt.subplot(2, 5, 1)
-        plt.imshow(img)
-        plt.axis("off")
-        plt.subplot(2, 5, 2)
-        plt.imshow(text_mask_clean)
-        plt.axis("off")
-        plt.subplot(2, 5, 3)
-        plt.imshow(back_clean)
-        plt.axis("off")
-        plt.subplot(2, 5, 4)
-        plt.imshow(output_img)
-        plt.axis("off")
-        plt.subplot(2, 5, 5)
-        plt.imshow(rec_img)
-        plt.axis("off")
-        plt.subplot(2, 5, 6)
-        plt.imshow(img_adv)
-        plt.axis("off")
-        plt.subplot(2, 5, 7)
-        plt.imshow(text_mask_adv)
-        plt.axis("off")
-        plt.subplot(2, 5, 8)
-        plt.imshow(back_adv)
-        plt.axis("off")
-        plt.subplot(2, 5, 9)
-        plt.imshow(output_img_adv)
-        plt.axis("off")
-        plt.subplot(2, 5, 10)
-        plt.imshow(rec_img_adv)
-        plt.axis("off")
-        save_result(save_file,[img_adv,vd_adv,vd,args.protect])
-        plt.savefig(os.path.join(save_dir, f'{args.attack}_{file[:-4]}.jpg'))
-        plt.close()
+    #     img=img.data.cpu().numpy()[0].transpose(1,2,0)
+    #     log.flush()
+    #     fig=plt.figure(figsize=(65, 30))
+    #     plt.subplot(2, 5, 1)
+    #     plt.imshow(img)
+    #     plt.axis("off")
+    #     plt.subplot(2, 5, 2)
+    #     plt.imshow(text_mask_clean)
+    #     plt.axis("off")
+    #     plt.subplot(2, 5, 3)
+    #     plt.imshow(back_clean)
+    #     plt.axis("off")
+    #     plt.subplot(2, 5, 4)
+    #     plt.imshow(output_img)
+    #     plt.axis("off")
+    #     plt.subplot(2, 5, 5)
+    #     plt.imshow(rec_img)
+    #     plt.axis("off")
+    #     plt.subplot(2, 5, 6)
+    #     plt.imshow(img_adv)
+    #     plt.axis("off")
+    #     plt.subplot(2, 5, 7)
+    #     plt.imshow(text_mask_adv)
+    #     plt.axis("off")
+    #     plt.subplot(2, 5, 8)
+    #     plt.imshow(back_adv)
+    #     plt.axis("off")
+    #     plt.subplot(2, 5, 9)
+    #     plt.imshow(output_img_adv)
+    #     plt.axis("off")
+    #     plt.subplot(2, 5, 10)
+    #     plt.imshow(rec_img_adv)
+    #     plt.axis("off")
+    #     save_result(save_file,[img_adv,vd_adv,vd,args.protect])
+    #     plt.savefig(os.path.join(save_dir, f'{args.attack}_{file[:-4]}.jpg'))
+    #     plt.close()
         
         
 log.close()

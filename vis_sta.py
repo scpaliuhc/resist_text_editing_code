@@ -42,6 +42,7 @@ def generate(args):
 
     files=os.listdir(args.pics)
     files.sort()
+    # files=files[0:200]
     num=len(files)
     vs={}
     count=0
@@ -61,6 +62,8 @@ def generate(args):
         img_adv=img_adv.to(dev)
         if args.replace:
             vd_adv=get_vd_from_adv(img_adv,dev,model)
+            save_file1=os.path.join(args.attack_dir,res,f'{args.attack}_{file[:-4]}_r.b')
+            save_result(save_file1,vd_adv)
         ssim_i,psnr_i,L1_i=ssim_psnr_L1(torch.clamp(img_adv,0.,1.), torch.clamp(img,0.,1.))
         if vd_adv is not None:
             count+=1
@@ -97,8 +100,8 @@ def generate(args):
             L1_b=None
         
 
-        if 0 in args.attack_p:
-            if vd_adv is None:
+        # if 0 in args.attack_p:
+        if vd_adv is None:
                 # occup=0.
                 # txt_content=0
                 # stroke=0
@@ -108,33 +111,33 @@ def generate(args):
                 # iou_index=[]
                 # blur=0
                 # offset=0
-                re=[0,0,[],[],0,None,None,[],0]
-            else:     
-                re=check_0(args,img_adv,vd,vd_adv,protect)
-            vs[file[:-4]]={
-                            'ssim_i':ssim_i,'psnr_i':psnr_i,'L1_i':L1_i,
+                re=[0,0,[],[],0,None,None,[],0,0,0,0]
+        else:     
+                re=check(vd,vd_adv,protect)
+        vs[file[:-4]]={'ssim_i':ssim_i,'psnr_i':psnr_i,'L1_i':L1_i,
                             'ssim_o':ssim_o,'psnr_o':psnr_o,'L1_o':L1_o,
                             'ssim_oa':ssim_oa,'psnr_oa':psnr_oa,'L1_oa':L1_oa,
                             'ssim_b':ssim_b,'psnr_b':psnr_b,'L1_b':L1_b,
                             'text_content':re[0],'stroke':re[1],
                             'shadow_visibility_flag':re[2],'stroke_visibility_flag':re[3],
-                            'font':re[4],'blur':re[5],'offset':re[6],'iou_index':re[7],
-                            'occup':re[8]}
+                            'font':re[4],'blur':re[5],'offset':re[6],'iou_index':re[7],'shadow_v':re[8],'shadow_v_adv':re[9],'stroke_v':re[10],'stroke_v_adv':re[11]}
         
-        else:            
-            re=check_1(img_adv,vd,vd_adv,protect)
-            vs[file[:-4]]={'ssim_i':ssim_i,'psnr_i':psnr_i,'L1_i':L1_i,
-                            'ssim_o':ssim_o,'psnr_o':psnr_o,'L1_o':L1_o,
-                            'ssim_oa':ssim_oa,'psnr_oa':psnr_oa,'L1_oa':L1_oa,
-                            'ssim_b':ssim_b,'psnr_b':psnr_b,'L1_b':L1_b,
-                            'text_content':re[0],'stroke':re[1],
-                            'shadow_visibility_flag':re[2],'stroke_visibility_flag':re[3],
-                            'font':re[4],'blur':re[5],'offset':re[6],'iou_index':re[7]}
+        # else:            
+        #     re=check_1(img_adv,vd,vd_adv,protect)
+        #     vs[file[:-4]]={'ssim_i':ssim_i,'psnr_i':psnr_i,'L1_i':L1_i,
+        #                     'ssim_o':ssim_o,'psnr_o':psnr_o,'L1_o':L1_o,
+        #                     'ssim_oa':ssim_oa,'psnr_oa':psnr_oa,'L1_oa':L1_oa,
+        #                     'ssim_b':ssim_b,'psnr_b':psnr_b,'L1_b':L1_b,
+        #                     'text_content':re[0],'stroke':re[1],
+        #                     'shadow_visibility_flag':re[2],'stroke_visibility_flag':re[3],
+        #                     'font':re[4],'blur':re[5],'offset':re[6],'iou_index':re[7]}
             
 
     logg.debug(count)
     save_file=os.path.join(save_dir,f'{args.attack_p[0]}_check.b')
+    
     save_result(save_file,vs)
+    
 
 def static(args):
     res=f'{args.GLI}_{args.attack_p}_visi{1 if args.T_visi else 0}'
@@ -147,13 +150,14 @@ def static(args):
     check_file = f'{args.attack_p[0]}_check.b'
     files = os.listdir(args.pics)
     files.sort()
+
     try:
         with open(os.path.join(pick_dir1,check_file),'rb') as f:
             vs=pickle.load(f)
     except Exception as e:
         logg.error(f'{e.args} {os.path.join(pick_dir1,check_file)}')
         exit(1)
-
+    
     # print(vs)
 
     text_num=[]
@@ -174,11 +178,17 @@ def static(args):
     stroke=[]
     shadow_visibility_flag=[]
     stroke_visibility_flag=[]
+    shadow_v=[]
+    shadow_v_adv=[]
+    stroke_v=[]
+    stroke_v_adv=[]
     font=[]
     iou_index=[]
     blur=[]
     offset=[]
+    logg.debug(len(files))
     for file in files:
+        logg.debug(file)
         file = file[:-4]
         try:
             img_adv,vd_adv,vd,protect=load_record(os.path.join(pick_dir2,f'{args.attack}_{file}.b'))
@@ -192,10 +202,10 @@ def static(args):
         else:
             text_num.append(len(protect))
         dic=vs[file]
-        if dic['text_content']!=0:
-            logg.debug(f"{file} {dic['text_content']} {dic['iou_index']}")
-            for item in dic['iou_index']:
-                logg.debug(f"{item} {vd.get_texts()[item[0]]} {vd_adv.get_texts()[item[1]]}")
+        # if dic['text_content']!=0:
+        #     logg.debug(f"{file} {dic['text_content']} {dic['iou_index']}")
+        #     for item in dic['iou_index']:
+        #         logg.debug(f"{item} {vd.get_texts()[item[0]]} {vd_adv.get_texts()[item[1]]}")
         ssim_i.append(dic['ssim_i'])
         psnr_i.append(dic['psnr_i'])
         L1_i.append(dic['L1_i'])
@@ -208,8 +218,10 @@ def static(args):
         ssim_b.append(dic['ssim_b'])
         psnr_b.append(dic['psnr_b'])
         L1_b.append(dic['L1_b'])
-        if 0 in args.attack_p:
-            occup.append(dic['occup'])
+        # if 0 in args.attack_p:
+        #     occup.append(dic['occup'])
+        #     if dic['occup']>0.98:
+        #         logg.error(f'{file}')
         # else:
         text_content.append(dic['text_content'])
         stroke.append(dic['stroke'])
@@ -219,6 +231,10 @@ def static(args):
         iou_index.append(dic['iou_index'])
         blur.append(dic['blur'])
         offset.append(dic['offset'])
+        shadow_v.append(dic['shadow_v'])
+        shadow_v_adv.append(dic['shadow_v_adv'])
+        stroke_v.append(dic['stroke_v'])
+        stroke_v_adv.append(dic['stroke_v_adv'])
     #distance between images
     min_max_mean_ssim_i=min_max_mean(ssim_i)
     min_max_mean_psnr_i=min_max_mean(psnr_i)
@@ -244,37 +260,45 @@ def static(args):
             min_max_mean_ssim_o,min_max_mean_psnr_o,min_max_mean_L1_o,
             min_max_mean_ssim_oa,min_max_mean_psnr_oa,min_max_mean_L1_oa,
             min_max_mean_ssim_b,min_max_mean_psnr_b,min_max_mean_L1_b]
-    #mask
-    if 0 in args.attack_p:
-        min_max_mean_occup=min_max_mean(occup)
-        rows=rows+['occup']
-        values=values+[min_max_mean_occup]
+
+    # if 0 in args.attack_p:
+    #     min_max_mean_occup=min_max_mean(occup)
+    #     rows=rows+['occup']
+    #     values=values+[min_max_mean_occup]
 
     # else:
     if True:
         #同一个字的区域,mask
         num_area=[len(i) for i in iou_index]
         ratio_area=np.array(num_area)/np.array(text_num)
+        num_area=[len(i) if len(i)>0 else 10000000 for i in iou_index]
         min_max_mean_area=min_max_mean(ratio_area)
         
         #相同内容的比例
-        ratio_content=np.array(text_content)/np.array(text_num)
+        ratio_content=np.array(text_content)/np.array(num_area)
         min_max_mean_content=min_max_mean(ratio_content)
+        
+
         #可见性
-        num_shadow_visibility_flag=[len(i) for i in shadow_visibility_flag]
-        ratio_shadow_visibility_flag=np.array(num_shadow_visibility_flag)/np.array(text_num)
-        min_max_mean_shadow_visibility_flag=min_max_mean(ratio_shadow_visibility_flag)
+        # num_shadow_visibility_flag=[len(i) for i in shadow_visibility_flag]
+        # ratio_shadow_visibility_flag=np.array(num_shadow_visibility_flag)/np.array(text_num)
+        # min_max_mean_shadow_visibility_flag=min_max_mean(ratio_shadow_visibility_flag)
 
-        num_stroke_visibility_flag=[len(i) for i in stroke_visibility_flag]
-        ratio_stroke_visibility_flag=np.array(num_stroke_visibility_flag)/np.array(text_num)
-        min_max_mean_stroke_visibility_flag=min_max_mean(ratio_stroke_visibility_flag)
+        # num_stroke_visibility_flag=[len(i) for i in stroke_visibility_flag]
+        # ratio_stroke_visibility_flag=np.array(num_stroke_visibility_flag)/np.array(text_num)
+        # min_max_mean_stroke_visibility_flag=min_max_mean(ratio_stroke_visibility_flag)
 
+        stroke=sum(stroke_v_adv)/sum(stroke_v)
+        shadow=sum(shadow_v_adv)/sum(shadow_v)
+        min_max_mean_stroke_v=[0,0,stroke,len(stroke_v)]
+        min_max_mean_shadow_v=[0,0,shadow,len(shadow_v)]
+        
         #stroke 
-        ratio_stroke=np.array(stroke)/np.array(text_num)
+        ratio_stroke=np.array(stroke)/np.array(num_area)
         min_max_mean_stroke=min_max_mean(ratio_stroke)
 
         #font
-        ratio_font=np.array(font)/np.array(text_num)
+        ratio_font=np.array(font)/np.array(num_area)
         min_max_mean_font=min_max_mean(ratio_font)
         
         #blur
@@ -284,19 +308,46 @@ def static(args):
         min_max_mean_offset=min_max_mean(offset)
 
         rows=rows+['area','content','shadow_v','stroke_v','stroke','shadow_blur','shadow_off','font']
-        values=values+[min_max_mean_area,min_max_mean_content,min_max_mean_shadow_visibility_flag,min_max_mean_stroke_visibility_flag,min_max_mean_stroke,min_max_mean_blur,min_max_mean_offset,min_max_mean_font]
+        values=values+[min_max_mean_area,min_max_mean_content,min_max_mean_shadow_v,min_max_mean_stroke_v,min_max_mean_stroke,min_max_mean_blur,min_max_mean_offset,min_max_mean_font]
     
     s=form_print(rows,values)
+    logg.debug(pick_dir1)
     with open(os.path.join(pick_dir1,'format.txt'),'w') as f:
         f.write(s)
         f.flush()
-        
+
+    a=[]
+    b=[]
+    for item in shadow_visibility_flag:
+        a+=item
+    for item in stroke_visibility_flag:
+        b+=item
+    a_t=0
+    a_f=0
+    b_f=0
+    b_t=0
+    for item in a:
+        if item:
+            a_t+=1
+        else:
+            a_f+=1
+    for item in b:
+        if item:
+            b_t+=1
+        else:
+            b_f+=1
+
+    logg.debug('shadow_vis:')
+    logg.debug(f'True:{a_t} False:{a_f}')
+    logg.debug('stroke_vis:')
+    logg.debug(f'True:{b_t} False:{b_f}')   
 if __name__=='__main__':
     args=parser.parse_args()
     print(args)
     if args.gs==0:
         generate(args)
     elif args.gs==1:
+        logg.debug('static')
         static(args)
     else:
         raise NotImplementedError

@@ -230,8 +230,8 @@ def gradient_based_attack(model,img,mean,std,args,dev,save_dir,mask,log,GT_ocr,t
     g_t=0
     iter=0
     alpha=args.epsilon/args.iter
-    try:
-    # if True:
+    # try:
+    if True:
         pert_l=0
         ocr_l=0
         inpaint_l=0
@@ -302,8 +302,10 @@ def gradient_based_attack(model,img,mean,std,args,dev,save_dir,mask,log,GT_ocr,t
             
             if 6 in args.attack_p:#shad
                 if args.GLI != 'ind':
+                    
                     str_l=shadow_loss(ADV_TxT.effect_param_outs[0],ADV_TxT.effect_param_outs[1],GT_shad_sig,GT_shad_tanh,index=None)
                 else:
+                    # logg.error(f'{type(GT_shad_sig)},{type(GT_shad_tanh)}')
                     str_l=shadow_loss(ADV_TxT.effect_param_outs[0],ADV_TxT.effect_param_outs[1],GT_shad_sig,GT_shad_tanh,index=args.protect)
             
             loss=args.lbd_ocr*ocr_l+args.lbd_inpaint*inpaint_l+args.lbd_visi_str*visi_str_l+args.lbd_visi_sha*visi_sha_l+args.lbd_str*str_l+args.lbd_sha*sha_l+args.lbd_font*font_l+args.lbd_pert*pert_l
@@ -324,7 +326,7 @@ def gradient_based_attack(model,img,mean,std,args,dev,save_dir,mask,log,GT_ocr,t
                     img_adv=img_adv-alpha*(g_t.sign()*mask[0][0])
             perturb=torch.clamp(img_adv-img,-args.epsilon,args.epsilon)
             img_adv=torch.clamp(img+perturb,0,1).detach_()
-    except Exception as e:
-        logg.exception(e.args)
-    finally:
-        return img_adv
+    # except Exception as e:
+    #     logg.exception(e.args)
+    # finally:
+    #     return img_adv
