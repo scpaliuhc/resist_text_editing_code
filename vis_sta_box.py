@@ -1,4 +1,6 @@
 import pickle
+from statistics import mode
+from tkinter.messagebox import NO
 import torch.nn.functional as F
 import numpy as np
 from logzero import logger as logg
@@ -23,6 +25,10 @@ def ssim_psnr_L1(img1,img2):
     ssim_=ssim(img1,img2, data_range=1.).item()
     psnr_=psnr(img1,img2, data_range=1.).item()
     L1_=F.l1_loss(img1,img2,reduction='mean').item()
+    # print(L1_)
+    # L1_=F.l1_loss(img1,img2,reduction='sum').item()
+    # print(L1_)
+    # exit()
     return ssim_,psnr_,L1_
 def draw_box(img,id,vd):
     x1,y1,x2,y2=vd.tb_param[id].box
@@ -142,10 +148,10 @@ def check(vd,vd_adv,protect):
         num_text_instance=len(texts)
         # logg.debug(num_text_instance)
         index=[i for i in range(num_text_instance)]
-        logg.debug(f'protect is None: {index}')
+        # logg.e(f'protect is None: {index}')
     else:
         index=protect
-        logg.debug(f'index {protect}')
+        # logg.debug(f'index {protect}')
 
     
     
@@ -200,7 +206,7 @@ def check(vd,vd_adv,protect):
     except:
         blur=None
         offset=None
-        logg.debug(f'len of iou_index is 0')
+        # logg.debug(f'len of iou_index is 0')
 
     return txt_content,stroke,shadow_visibility_flag,stroke_visibility_flag,font,blur,offset,iou_index,shadow_visi,shadow_visi_adv,stroke_visi,stroke_visi_adv
 
@@ -249,6 +255,46 @@ def get_vd_from_adv(adv,dev,model):
     inps = (img_adv_norm, None, img_size)
     with torch.no_grad():
         outs_adv = model(img_adv_norm, img_adv_orig)
+    vd_adv, _, _ = vectorize_postref(
+                    pil_img_adv, inps, outs_adv, model.reconstractor, 150, dev=dev
+                )
+    return vd_adv
+
+def get_vd_from_adv_img(adv,img,dev,model):
+    # img 0-1
+    # img_norm img-mean/std
+    # img_org -1 1
+    mean_=torch.tensor([0.485, 0.456, 0.406],dtype=torch.float32).reshape((1,3,1,1)).to(dev)
+    std_=torch.tensor([0.229, 0.224, 0.225],dtype=torch.float32).reshape((1,3,1,1)).to(dev)
+    # vd_adv, _, _ = vectorize_postref(
+    #                 pil_img_adv, inps, outs_adv, model.reconstractor, 150, dev=dev
+    #             )
+
+    # return vd_adv
+    img_norm=(img-mean_)/std_
+
+    img_adv_norm=(adv-mean_)/std_
+    
+    img_adv_np=(adv[0].data.cpu().permute(1, 2, 0).numpy()*255).astype(np.uint8)
+    pil_img_adv = Image.fromarray(img_adv_np)
+    img_size = torch.tensor([pil_img_adv.size[1], pil_img_adv.size[0]]).unsqueeze(0)
+    img_adv_orig=(adv-0.5)*2
+    img_orig=(img-0.5)*2
+    inps = (img_adv_norm, None, img_size)
+    with torch.no_grad():
+        outs = model(img_norm, img_orig)
+        # outs_adv = model(img_adv_norm,img_adv_orig)
+        # outs_adv[0].ocr_outs=outs[0].ocr_outs
+        # from attack_box_util import get_parser_outs_with_fixed_ocr
+        txtinf,fe,_=get_parser_outs_with_fixed_ocr(img_adv_norm,img_adv_orig,model,outs[0].ocr_outs)
+        inpaint = model.inpaintor(img_adv_orig, txtinf)
+        inpaint = F.interpolate(inpaint, img_adv_orig.shape[2:4], mode="bilinear")
+        rec = model.reconstractor(fe, img_adv_orig, inpaint, txtinf)
+        outs_adv=(txtinf, inpaint, rec)
+    # if outs_adv[0].font_outs.shape[1]==0: 
+    #     logg.debug(outs_adv[0].font_outs.shape[1])
+    #     vd_adv=None
+    # else:
     vd_adv, _, _ = vectorize_postref(
                     pil_img_adv, inps, outs_adv, model.reconstractor, 150, dev=dev
                 )

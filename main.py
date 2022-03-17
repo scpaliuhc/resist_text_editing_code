@@ -15,6 +15,8 @@ from logzero import logger as logg
 import pickle
 import random,math
 parser = argparse.ArgumentParser()
+parser.add_argument('--save_dir',default='result')
+parser.add_argument('--perc',default=98,type=int)
 parser.add_argument('-d','--data_dir',default='dataset')
 parser.add_argument('-g','--gpuid',default=0,type=int)
 parser.add_argument('-a','--attack',default='bim',choices=['pgd','bim','fgsm','mi_fgsm'])
@@ -51,7 +53,7 @@ files.sort()
 mean_=torch.tensor([0.485, 0.456, 0.406],dtype=torch.float32).reshape((1,3,1,1)).to(dev)
 std_=torch.tensor([0.229, 0.224, 0.225],dtype=torch.float32).reshape((1,3,1,1)).to(dev)
 model = load_model(dev)
-save_dir=f'result/{args.GLI}_{args.attack_p}_visi{1 if args.T_visi else 0}'
+save_dir=f'{args.save_dir}/{args.GLI}_{args.attack_p}_visi{1 if args.T_visi else 0}'
 if args.reset:
     try:
         shutil.rmtree(save_dir)
@@ -105,6 +107,8 @@ for id,file in enumerate(files):
                                     255),
                                 torch.zeros_like(rec_img))
             rec_img=rec_img.data.cpu().numpy()[0].transpose(1, 2, 0)/255
+            if not os.path.exists(save_file_GT):
+                save_result(save_file_GT,[op,rec_img])
 
 
         if args.GLI=='ind':
@@ -122,24 +126,12 @@ for id,file in enumerate(files):
         GT_stroke=torch.argmax(torch.softmax(torch.tensor(op.stroke_param_outs[0,:,:,0,0],dtype=torch.float32).to(dev),1),1)
         GT_shadow_sig=torch.tensor(op.shadow_param_sig_outs,dtype=torch.float32).to(dev)
         GT_shadow_tanh=torch.tensor(op.shadow_param_tanh_outs,dtype=torch.float32).to(dev)
-        logg.debug(vd.get_texts())
-        logg.debug(vd.get_font_names())
+        # logg.debug(vd.get_texts())
+        # logg.debug(vd.get_font_names())
         text_mask_clean=outs[0].bbox_information.get_text_instance_mask()[0]
         back_clean=vd.bg.astype(np.uint8)
         output_img = render_vd(vd)
 
-        # 用一次ocr的结果作为GT
-        # shadow_visibility, stroke_visibility = GT.effect_visibility_outs
-        # shadow_param_sig, shadow_param_tanh, stroke_param = GT.effect_param_outs
-        # fonts=GT.font_outs
-        # font_GT=F.softmax(fonts[0], 1)
-        # font_GT=font_GT.view(font_GT.shape[0],font_GT.shape[1])
-        # font_GT=torch.argmax(font_GT.detach().clone(),1)
-        # stroke_GT=F.softmax(stroke_param[0],1)
-        # stroke_GT=stroke_GT.view(stroke_GT.shape[0],stroke_GT.shape[1])
-        # stroke_GT=torch.argmax(stroke_GT.detach().clone(),1)
-        # shadow_sig_GT=shadow_param_sig.detach().clone()
-        # shadow_tanh_GT=shadow_param_tanh.detach().clone()
         
         GT_word_out, _, _ = GT.ocr_outs
         GT_text_fg_pred, _, _ = GT_word_out
@@ -204,6 +196,7 @@ for id,file in enumerate(files):
             rec_img_adv=back_adv
             vd_adv=None
         else:
+            logg.debug('optimizing for vd_adv')
             vd_adv, rec_img_adv, op_adv = vectorize_postref(
                     pil_img_adv, inps, outs_adv, model.reconstractor, args.iter2, dev=dev
                 )
@@ -255,7 +248,7 @@ for id,file in enumerate(files):
         plt.imshow(rec_img_adv)
         plt.axis("off")
         save_result(save_file,[img_adv,vd_adv,vd,args.protect])
-        save_result(save_file_GT,[op,rec_img])
+        
         plt.savefig(os.path.join(save_dir, f'{args.attack}_{file[:-4]}.jpg'))
         plt.close()
         

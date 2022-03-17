@@ -1,3 +1,4 @@
+from ast import arg
 import tarfile
 import torch
 import matplotlib.pyplot as plt
@@ -16,6 +17,7 @@ from src.models.layers.geometry.shape import convert_shape
 from src.dto.dto_model import TextInfo
 from logzero import logger as logg
 #######################loss#####################
+a=[]
 def pert_loss(adv_img,img,mask=None,ord=1):
     if ord==1:
         if mask is None:
@@ -244,12 +246,6 @@ def gradient_based_attack(model,img,mean,std,args,dev,save_dir,mask,log,GT_ocr,t
             img_adv.requires_grad=True
             img_adv_norm=(img_adv-mean)/std
             img_adv_org=(img_adv-0.5)*2
-            ########待定
-            # if 2 in args.attack_p or 3 in args.attack_p or 4 in args.attack_p or 6 in args.attack_p or 6 in args.attack_p:
-            # ADV_TxT,_,ocr_outs_adv=get_parser_outs_with_fixed_ocr(img_adv_norm,img_adv_org,model,ocr_fixed=GT_ocr)
-            # else:
-            #     ADV_TxT,_=get_parser_outs(img_adv_norm,img_adv_org,model)
-            ##########
 
             ###########
             if 1 in args.attack_p: #1和0不替换
@@ -303,21 +299,50 @@ def gradient_based_attack(model,img,mean,std,args,dev,save_dir,mask,log,GT_ocr,t
             if 6 in args.attack_p:#shad
                 if args.GLI != 'ind':
                     
-                    str_l=shadow_loss(ADV_TxT.effect_param_outs[0],ADV_TxT.effect_param_outs[1],GT_shad_sig,GT_shad_tanh,index=None)
+                    sha_l=shadow_loss(ADV_TxT.effect_param_outs[0],ADV_TxT.effect_param_outs[1],GT_shad_sig,GT_shad_tanh,index=None)
                 else:
                     # logg.error(f'{type(GT_shad_sig)},{type(GT_shad_tanh)}')
-                    str_l=shadow_loss(ADV_TxT.effect_param_outs[0],ADV_TxT.effect_param_outs[1],GT_shad_sig,GT_shad_tanh,index=args.protect)
+                    sha_l=shadow_loss(ADV_TxT.effect_param_outs[0],ADV_TxT.effect_param_outs[1],GT_shad_sig,GT_shad_tanh,index=args.protect)
             
             loss=args.lbd_ocr*ocr_l+args.lbd_inpaint*inpaint_l+args.lbd_visi_str*visi_str_l+args.lbd_visi_sha*visi_sha_l+args.lbd_str*str_l+args.lbd_sha*sha_l+args.lbd_font*font_l+args.lbd_pert*pert_l
             log.write(f'{i:4d}\t{loss:.4f}\t{pert_l:.4f}\t{ocr_l:.4f}\t{inpaint_l:.4f}\t{font_l:.4f}\t{visi_str_l:.4f}\t{visi_sha_l:.4f}\t{str_l:.4f}\t{sha_l:.4f}\n')
             log.flush()
             loss.backward()
             
+
+            # indx=torch.nonzero(img_adv.grad,as_tuple=True)
+            # non_zero_grad=img_adv.grad[indx[0],indx[1],indx[2],indx[3]]
+            # grad=non_zero_grad.view(-1)
+            # logg.debug(f'{img_adv.grad.view(-1).shape},{grad.shape}')
+            # # a.append()
+            # a=grad.data.cpu().numpy()
+            # plt.hist(a,bins=10000)
+            # plt.savefig('test.png')
+            # plt.close()
+            # exit()
+
+            if args.perc is not None:
+                # indx=torch.nonzero(img_adv.grad,as_tuple=True)
+                # assert len(indx)==4
+                # non_zero_grad=img_adv.grad[indx[0],indx[1],indx[2],indx[3]]
+                main_value=np.percentile(np.abs(img_adv.grad.data.cpu().numpy()),args.perc)
+                scale=1/(main_value+0.00000001)
+                grad=img_adv.grad*scale
+                grad=torch.clamp(grad,-1.0,1.0)
+
+
+
             if args.attack != 'mi_fgsm':
-                if args.GLI=='glo':
-                    img_adv=img_adv-alpha*img_adv.grad.sign()
+                if args.GLI=='glo':  
+                    if args.perc is not None:
+                        img_adv=img_adv-alpha*grad
+                    else:
+                        img_adv=img_adv-alpha*img_adv.grad.sign()
                 else:
-                    img_adv=img_adv-alpha*(img_adv.grad.sign()*mask[0][0])
+                    if args.perc is not None:
+                        img_adv=img_adv-alpha*grad*mask[0][0]
+                    else:
+                        img_adv=img_adv-alpha*(img_adv.grad.sign()*mask[0][0])
             else:
                 g_t=args.mu*g_t+img_adv.grad/torch.norm(img_adv.grad,p=1)
                 if args.GLI=='glo':
@@ -327,6 +352,6 @@ def gradient_based_attack(model,img,mean,std,args,dev,save_dir,mask,log,GT_ocr,t
             perturb=torch.clamp(img_adv-img,-args.epsilon,args.epsilon)
             img_adv=torch.clamp(img+perturb,0,1).detach_()
     except Exception as e:
-        logg.exception(e.args)
+        logg.exception(e)
     finally:
         return img_adv
