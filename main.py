@@ -16,7 +16,7 @@ import pickle
 import random,math
 parser = argparse.ArgumentParser()
 parser.add_argument('--save_dir',default='result')
-parser.add_argument('--perc',default=98,type=int)
+parser.add_argument('--perc',type=int)
 parser.add_argument('-d','--data_dir',default='dataset')
 parser.add_argument('-g','--gpuid',default=0,type=int)
 parser.add_argument('-a','--attack',default='bim',choices=['pgd','bim','fgsm','mi_fgsm'])
@@ -73,7 +73,7 @@ if args.log:
 for id,file in enumerate(files):
     # if f'{args.attack}_{file[:-4]}.b' in finished:
     #     continue
-    save_file_GT=os.path.join('GT',f'{args.attack}_{file[:-4]}.b')
+    save_file_GT=os.path.join('GT',f'bim_{file[:-4]}.b')
     try:
     # if True:
         logg.debug(f"{id}/{total} {file}")
@@ -87,13 +87,13 @@ for id,file in enumerate(files):
         img_size = torch.tensor([pil_img.size[1], pil_img.size[0]]).unsqueeze(0)
         inps = (img_norm, None, img_size)
         # with torch.no_grad():
-        #     GT,fe=get_parser_outs(img_clean_norm,img_org,model)
+        #     GT,fe=get_parser_outs(img_clean_norm,img_org,model)0
         with torch.no_grad():
             outs = model(img_norm, img_org)
         try:
             with open(save_file_GT,'rb') as f:
                 op,rec_img=pickle.load(f)
-            with open(os.path.join('result/glo_[0]_visi0/',f'{args.attack}_{file[:-4]}.b'),'rb') as f:
+            with open(os.path.join('result/glo_[0]_visi0/',f'bim_{file[:-4]}.b'),'rb') as f:
                 _,_,vd,_=pickle.load(f)
         except Exception as e:
             logg.error(e)
@@ -181,13 +181,15 @@ for id,file in enumerate(files):
         pil_img_adv = Image.fromarray(img_adv_np)
         inps = (img_adv_norm, None, img_size)
         img_adv=img_adv.data.cpu().numpy()[0].transpose(1,2,0)    
-        if 0 in args.attack_p or 1 in args.attack_p:
-            with torch.no_grad():
-                outs_adv = model(img_adv_norm, img_adv_orig)
-        else:
-            logg.debug('predict_with_fixed_ocr')
-            with torch.no_grad():
-                outs_adv = predict_with_fixed_ocr(img_adv_norm, img_adv_orig, model,GT_ocr)
+        #######暂时的，以后运行要把下面的注释取消
+        # if 0 in args.attack_p or 1 in args.attack_p:
+        #     with torch.no_grad():
+        #         outs_adv = model(img_adv_norm, img_adv_orig)
+        # else:
+        #     logg.debug('predict_with_fixed_ocr')
+        ##下面的两行属于else里面的，到时要缩进
+        with torch.no_grad():
+            outs_adv = predict_with_fixed_ocr(img_adv_norm, img_adv_orig, model,GT_ocr)
         if outs_adv[0].font_outs.shape[1]==0:
             logg.error(f"{outs_adv[0].font_outs.shape}")
             log.write(f'[error]-adv: {outs_adv[0].font_outs.shape}\n')
@@ -209,8 +211,8 @@ for id,file in enumerate(files):
             rec_img_adv=rec_img_adv.data.cpu().numpy()[0].transpose(1, 2, 0)/255
             output_img_adv = render_vd(vd_adv)
             back_adv=vd_adv.bg.astype(np.uint8)
-            logg.debug(vd_adv.get_texts())
-            logg.debug(vd_adv.get_font_names())
+            # logg.debug(vd_adv.get_texts())
+            # logg.debug(vd_adv.get_font_names())
         text_mask_adv=outs_adv[0].bbox_information.get_text_instance_mask()[0]
         
         

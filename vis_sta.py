@@ -22,8 +22,8 @@ parser.add_argument('-g','--gpuid',default=0,type=int)
 parser.add_argument('--T_visi',default=False,type=bool)
 parser.add_argument('--gs',default=0,type=int)
 parser.add_argument('--replace',default=False,type=bool)
-parser.add_argument('--g2l',default=False,type=bool)
-parser.add_argument('--ld',default=False,type=bool)
+parser.add_argument('--crop',default=False,type=bool)
+# parser.add_argument('--ld',default=False,type=bool)
 
 def generate(args):
     res=f'{args.GLI}_{args.attack_p}_visi{1 if args.T_visi else 0}'
@@ -56,12 +56,12 @@ def generate(args):
         img = load_img(os.path.join(args.pics,file))
         try:
             img_adv,vd_adv,vd,protect=load_record(os.path.join(args.attack_dir,res,f'{args.attack}_{file[:-4]}.b'))
-            if args.g2l:
+            if args.crop:
                 with open(os.path.join(args.attack_dir_g2l,res,f'{args.attack}_{file[:-4]}.b'),'rb') as f:
                     img_adv=pickle.load(f)
-            if args.ld:
-                with open(os.path.join(args.attack_dir_g2l,res,f'{args.attack}_{file[:-4]}.b'),'rb') as f:
-                    img_adv=pickle.load(f)
+            # if args.ld:
+            #     with open(os.path.join(args.attack_dir_g2l,res,f'{args.attack}_{file[:-4]}.b'),'rb') as f:
+            #         img_adv=pickle.load(f)
 
 
         except Exception as e:
@@ -87,28 +87,29 @@ def generate(args):
                 save_file1=os.path.join(args.attack_dir,res,f'{args.attack}_{file[:-4]}_r.b')
                 save_result(save_file1,vd_adv)
             
-        if args.g2l:
+        if args.crop:
             if os.path.exists(os.path.join(args.attack_dir_g2l,res,f'{args.attack}_{file[:-4]}_vd.b')):
                 with open(os.path.join(args.attack_dir_g2l,res,f'{args.attack}_{file[:-4]}_vd.b'),'rb') as f:
                     vd_adv=pickle.load(f)
             else:
                 try:
                     vd_adv=get_vd_from_adv(img_adv,dev,model)
+                    # logg.debug(f'{len(vd.get_texts())} {len(vd_adv.get_texts())}')
                 except:
                     vd_adv=None
                 save_file1=os.path.join(args.attack_dir_g2l,res,f'{args.attack}_{file[:-4]}_vd.b')
                 save_result(save_file1,vd_adv)
-        if args.ld:
-            if os.path.exists(os.path.join(args.attack_dir_g2l,res,f'{args.attack}_{file[:-4]}_vd.b')):
-                with open(os.path.join(args.attack_dir_g2l,res,f'{args.attack}_{file[:-4]}_vd.b'),'rb') as f:
-                    vd_adv=pickle.load(f)
-            else:
-                try:
-                    vd_adv=get_vd_from_adv(img_adv,dev,model)
-                except:
-                    vd_adv=None
-                save_file1=os.path.join(args.attack_dir_g2l,res,f'{args.attack}_{file[:-4]}_vd.b')
-                save_result(save_file1,vd_adv)
+        # if args.ld:
+        #     if os.path.exists(os.path.join(args.attack_dir_g2l,res,f'{args.attack}_{file[:-4]}_vd.b')):
+        #         with open(os.path.join(args.attack_dir_g2l,res,f'{args.attack}_{file[:-4]}_vd.b'),'rb') as f:
+        #             vd_adv=pickle.load(f)
+        #     else:
+        #         try:
+        #             vd_adv=get_vd_from_adv(img_adv,dev,model)
+        #         except:
+        #             vd_adv=None
+        #         save_file1=os.path.join(args.attack_dir_g2l,res,f'{args.attack}_{file[:-4]}_vd.b')
+        #         save_result(save_file1,vd_adv)
 
 
         ssim_i,psnr_i,L1_i=ssim_psnr_L1(torch.clamp(img_adv,0.,1.), torch.clamp(img,0.,1.))
@@ -164,10 +165,10 @@ def generate(args):
                             'shadow_visibility_flag':re[2],'stroke_visibility_flag':re[3],
                             'font':re[4],'blur':re[5],'offset':re[6],'iou_index':re[7],'shadow_v':re[8],'shadow_v_adv':re[9],'stroke_v':re[10],'stroke_v_adv':re[11]}
     # logg.debug(count)
-    if args.g2l:
-        save_file=os.path.join(save_dir,f'{args.attack_p[0]}_check_g2l.b')
-    elif args.ld:
-        save_file=os.path.join(save_dir,f'{args.attack_p[0]}_check_ld.b')
+    if args.crop:
+        save_file=os.path.join(save_dir,f'{args.attack_p[0]}_check_crop.b')
+    # elif args.ld:
+    #     save_file=os.path.join(save_dir,f'{args.attack_p[0]}_check_ld.b')
     else:
         save_file=os.path.join(save_dir,f'{args.attack_p[0]}_check.b')
     save_result(save_file,vs)
@@ -181,10 +182,10 @@ def static(args):
         pick_dir1=os.path.join(args.check_dir,res)
     # pick_dir1=os.path.join(args.check_dir,res)
     pick_dir2=os.path.join(args.attack_dir,res)
-    if args.g2l:
-        check_file = f'{args.attack_p[0]}_check_g2l.b'
-    elif args.ld:
-        check_file = f'{args.attack_p[0]}_check_ld.b'
+    if args.crop:
+        check_file = f'{args.attack_p[0]}_check_crop.b'
+    # elif args.ld:
+    #     check_file = f'{args.attack_p[0]}_check_ld.b'
     else:
         check_file = f'{args.attack_p[0]}_check.b'
     files = os.listdir(args.pics)
@@ -235,23 +236,25 @@ def static(args):
     blur=[]
     offset=[]
     num_dtect=[]
-    logg.debug(len(files))
     for file in files:
         # logg.debug(file)
         file = file[:-4]
-        try:
-            img_adv,vd_adv,vd,protect=load_record(os.path.join(pick_dir2,f'{args.attack}_{file}.b'))
-        except Exception as e:
-            # img_adv,vd_adv,vd,protect
-            print(e.args)
-            print(os.path.join(args.attack_dir,res,f'{args.attack}_{file[:-4]}.b'))
-            exit()
+        # try:
+        img_adv,vd_adv,vd,protect=load_record(os.path.join(pick_dir2,f'{args.attack}_{file}.b'))
+        with open(os.path.join(pick_dir2,f'{args.attack}_{file}_r.b'),'rb') as f:
+            vd_adv_r=pickle.load(f)
+        # logg.debug(type(vd_adv_r))
+        # except Exception as e:
+        #     # img_adv,vd_adv,vd,protect
+        #     print(e.args)
+        #     print(os.path.join(args.attack_dir,res,f'{args.attack}_{file[:-4]}.b'))
+        #     exit()
         if protect is None:
             text_num.append(len(vd.get_texts()))
-            num_dtect.append(len(vd_adv.get_texts()) if vd_adv is not None else 0.0001)
-            if vd_adv is not None:
-                if len(vd.get_texts())!=len(vd_adv.get_texts()):
-                    logg.debug(f'{res} {file}')
+            num_dtect.append(len(vd_adv_r.get_texts()) if vd_adv_r is not None else 0.0001)
+            # if vd_adv is not None:
+            #     # if len(vd.get_texts())!=len(vd_adv.get_texts()):
+                #     logg.debug(f'{res} {file}')
         else:
             text_num.append(len(protect))
         dic=vs[file]
@@ -358,7 +361,7 @@ def static(args):
         num_area=[len(i) for i in iou_index] 
         ratio_area=np.array(num_area)/np.array(text_num)
         # print(ratio_area)
-        exit()
+        
         ratio_precision=np.array(num_area)/np.array(num_dtect)
         num_area=[len(i) if len(i)>0 else 10000000 for i in iou_index]
         min_max_mean_area=min_max_mean(ratio_area)
@@ -369,10 +372,20 @@ def static(args):
         min_max_mean_content=min_max_mean(ratio_content)
 
         #可见性
-        stroke=sum(stroke_v_adv)/sum(stroke_v)
-        shadow=sum(shadow_v_adv)/sum(shadow_v)
-        min_max_mean_stroke_v=[0,0,stroke,len(stroke_v)]
-        min_max_mean_shadow_v=[0,0,shadow,len(shadow_v)]
+        print(stroke_v)
+        print(shadow_v)
+        try:
+            stroke=sum(stroke_v_adv)/sum(stroke_v)
+            min_max_mean_stroke_v=[0,0,stroke,len(stroke_v)]
+        except ZeroDivisionError:
+            min_max_mean_stroke_v=[0,0,None,len(stroke_v)]
+        try:
+            shadow=sum(shadow_v_adv)/sum(shadow_v)
+            min_max_mean_shadow_v=[0,0,shadow,len(shadow_v)]
+        except ZeroDivisionError:
+            min_max_mean_shadow_v=[0,0,None,len(shadow_v)]
+       
+       
         
         #stroke 
         ratio_stroke=np.array(stroke)/np.array(num_area)
@@ -393,10 +406,10 @@ def static(args):
     
     s=form_print(rows,values)
     logg.debug(pick_dir1)
-    if args.g2l:
-        file_name='format_g2l.txt'
-    elif args.ld:
-        file_name='format_ld.txt'
+    if args.crop:
+        file_name='format_crop.txt'
+    # elif args.ld:
+    #     file_name='format_ld.txt'
     else:
         file_name='format.txt'
     with open(os.path.join(pick_dir1,file_name),'w') as f:
@@ -434,7 +447,6 @@ if __name__=='__main__':
     if args.gs==0:
         generate(args)
     elif args.gs==1:
-        logg.debug('static')
         static(args)
     else:
         raise NotImplementedError

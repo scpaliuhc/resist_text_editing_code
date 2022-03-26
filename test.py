@@ -49,18 +49,19 @@ def test(imgfile, savepath, saveprefix, use_cpu=True, gpuid=0, use_postref=True,
     inps = (img_norm, None, img_size)
 
     # w/o postref
-    start = time.time()
-    vd, rec_img = vectorize(pil_img, inps, outs)
-    end = time.time()
-    elapsed_vectorize = end - start
+    # start = time.time()
+    # vd, rec_img = vectorize(pil_img, inps, outs)
+    # end = time.time()
+    # elapsed_vectorize = end - start
 
     # w/ postref
     if use_postref:
         start = time.time()
-        vd, rec_img = vectorize_postref(
+        re = vectorize_postref(
             pil_img, inps, outs, model.reconstractor, iter_count, dev=dev
         )
         end = time.time()
+        vd, rec_img, _ = re
     # rendering
     output_img = render_vd(vd)
     # save
@@ -166,11 +167,11 @@ if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser(description="Test script")
         parser.add_argument('--imgfile', required=False,
-                            default="example/sample.jpg",
+                            default="/home/cqu3/code/derendering-text-newest/dataset/006173585X.jpg",
                             help='input image path',
                             type=str)
         parser.add_argument('--savepath', required=False,
-                            default="res",
+                            default="ress",
                             help='path for results',
                             type=str)
         parser.add_argument('--saveprefix', required=False,

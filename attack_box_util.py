@@ -248,11 +248,11 @@ def gradient_based_attack(model,img,mean,std,args,dev,save_dir,mask,log,GT_ocr,t
             img_adv_org=(img_adv-0.5)*2
 
             ###########
-            if 1 in args.attack_p: #1和0不替换
-                ADV_TxT,_=get_parser_outs(img_adv_norm,img_adv_org,model)
-                ocr_outs_adv=ADV_TxT.ocr_outs
-            else:
-                ADV_TxT,_,ocr_outs_adv=get_parser_outs_with_fixed_ocr(img_adv_norm,img_adv_org,model,ocr_fixed=GT_ocr)
+            # if 1 in args.attack_p: #1和0不替换
+            #     ADV_TxT,_=get_parser_outs(img_adv_norm,img_adv_org,model)
+            #     ocr_outs_adv=ADV_TxT.ocr_outs
+            # else:
+            ADV_TxT,_,ocr_outs_adv=get_parser_outs_with_fixed_ocr(img_adv_norm,img_adv_org,model,ocr_fixed=GT_ocr)
             ###########
             model.zero_grad()
             
@@ -321,18 +321,21 @@ def gradient_based_attack(model,img,mean,std,args,dev,save_dir,mask,log,GT_ocr,t
             # plt.close()
             # exit()
 
-            if args.perc is not None:
-                # indx=torch.nonzero(img_adv.grad,as_tuple=True)
-                # assert len(indx)==4
-                # non_zero_grad=img_adv.grad[indx[0],indx[1],indx[2],indx[3]]
-                main_value=np.percentile(np.abs(img_adv.grad.data.cpu().numpy()),args.perc)
-                scale=1/(main_value+0.00000001)
-                grad=img_adv.grad*scale
-                grad=torch.clamp(grad,-1.0,1.0)
-
+            
+            #############
+            
 
 
             if args.attack != 'mi_fgsm':
+                if args.perc is not None:
+                # indx=torch.nonzero(img_adv.grad,as_tuple=True)
+                # assert len(indx)==4
+                # non_zero_grad=img_adv.grad[indx[0],indx[1],indx[2],indx[3]]
+                    main_value=np.percentile(np.abs(img_adv.grad.data.cpu().numpy()),args.perc)
+                    scale=1/(main_value+0.00000001)
+                    grad=img_adv.grad*scale
+                    grad=torch.clamp(grad,-1.0,1.0)
+
                 if args.GLI=='glo':  
                     if args.perc is not None:
                         img_adv=img_adv-alpha*grad
@@ -345,10 +348,21 @@ def gradient_based_attack(model,img,mean,std,args,dev,save_dir,mask,log,GT_ocr,t
                         img_adv=img_adv-alpha*(img_adv.grad.sign()*mask[0][0])
             else:
                 g_t=args.mu*g_t+img_adv.grad/torch.norm(img_adv.grad,p=1)
+                if args.perc is not None:
+                    main_value=np.percentile(np.abs(g_t.data.cpu().numpy()),args.perc)
+                    scale=1/(main_value+0.00000001)
+                    g_t1=g_t*scale
+                    g_t1=torch.clamp(g_t1,-1.0,1.0)
                 if args.GLI=='glo':
-                    img_adv=img_adv-alpha*g_t.sign()
+                    if args.perc is not None:
+                        img_adv=img_adv-alpha*g_t1
+                    else:
+                        img_adv=img_adv-alpha*g_t.sign()
                 else:
-                    img_adv=img_adv-alpha*(g_t.sign()*mask[0][0])
+                    if args.perc is not None:
+                        img_adv=img_adv-alpha*g_t1*mask[0][0]
+                    else:
+                        img_adv=img_adv-alpha*(g_t.sign()*mask[0][0])
             perturb=torch.clamp(img_adv-img,-args.epsilon,args.epsilon)
             img_adv=torch.clamp(img+perturb,0,1).detach_()
     except Exception as e:

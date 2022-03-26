@@ -167,14 +167,18 @@ def check(vd,vd_adv,protect):
     shadow_visi_adv=0
     stroke_visi=0
     stroke_visi_adv=0
+    indx=[] # 去掉
     for i in index:
         x1,y1,x2,y2=vd.tb_param[i].box
         for j in range(len(texts_adv)):
+            if j in indx: # 去掉
+                continue # 去掉
             x1_adv,y1_adv,x2_adv,y2_adv=vd_adv.tb_param[j].box
             iou=Cal_IOU((abs(x1),abs(y1),abs(x2),abs(y2)),(abs(x1_adv),abs(y1_adv),abs(x2_adv),abs(y2_adv)))
-            if iou>0.1:#是同一个字
+            if iou>0.3:
+                indx.append(j) # 去掉
                 iou_index.append((i,j))
-                if texts[i]==texts_adv[j]:#文字内容是否识别准确，但这个并不重要，内容可修改
+                if texts[i]==texts_adv[j]:
                     txt_content+=1
                 
                 if vd.effect_visibility[i].shadow_visibility_flag:
